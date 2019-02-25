@@ -18,21 +18,6 @@ module.exports = {
             length: 255,
         },
         {
-            name: 'designation',
-            type: 'String',
-            length: 255,
-        },
-        {
-            name: 'bank',
-            type: 'String',
-            length: 255,
-        },
-        {
-            name: 'accountNumber',
-            type: 'String',
-            length: 255,
-        },
-        {
             name: 'identity',
             type: 'String',
             length: 1000,
@@ -43,9 +28,9 @@ module.exports = {
             length: 1000,
         },
         {
-            name: 'salary',
+            name: 'extra',
             type: 'String',
-            length: 255,
+            length: 1000
         },
         {
             name: 'walletAddress',
@@ -62,10 +47,5 @@ module.exports = {
             type: 'String',
             length: 255,
         }
-        // {
-                //     name: 'token',
-                //     type: 'String',
-                //     length: 255
-                // }
     ]
 }

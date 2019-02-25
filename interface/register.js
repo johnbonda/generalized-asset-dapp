@@ -11,6 +11,7 @@ var SwaggerCall = require("../utils/SwaggerCall");
 var logger = require("../utils/logger");
 var locker = require("../utils/locker");
 var blockWait = require("../utils/blockwait");
+var escape = require("../utils/escape");
 
 
 
@@ -246,32 +247,13 @@ app.route.post('/payslip/initialIssue',async function(req,cb){
         }
    });
    if(!employee) return {
-       message: "Invalid Employee",
+       message: "Invalid Recipient",
        isSuccess: false
     }
     var identity = JSON.parse(Buffer.from(employee.identity, 'base64').toString());
    
     var timestamp = new Date().getTime();
-     var payslip={
-        pid: String(Number(app.autoID.get('payslip_max_pid')) + 1),
-        email:employee.email,
-        empid:employee.empid,
-        name:employee.name,
-        employer:req.query.employer,
-        month:req.query.month,
-        year:req.query.year,
-        designation:employee.designation,
-        bank:employee.bank,
-        accountNumber:employee.accountNumber,
-        identity: identity,
-        earnings: req.query.earnings,
-        deductions: req.query.deductions,
-        grossSalary:req.query.grossSalary,
-        totalDeductions:req.query.totalDeductions,
-        netSalary:req.query.netSalary,
-        timestampp: timestamp.toString(),
-        deleted: '0'
-     };
+
      issuerid=req.query.issuerid;
      secret=req.query.secret;
      var publickey = util.getPublicKey(secret);
@@ -301,38 +283,29 @@ app.route.post('/payslip/initialIssue',async function(req,cb){
 
      if(!issuerDepartmentExists) return {
          isSuccess: false,
-         message: "Issuer and employee department doesn't match"
+         message: "Issuer and recipient department doesn't match"
      }
 
      if(issuer.publickey === '-'){
          app.sdb.update('issuer', {publickey: publickey}, {iid:issuerid});
      }
+
+     req.query.payslip.identity = identity;
      
     // Check Payslip already issued
-    var options = {
-        condition: {
-            empid: payslip.empid,
-            employer: payslip.employer,
-            month: payslip.month,
-            year: payslip.year,
-            deleted: '0'
-        }
-    }
-    var checkPayslip = await app.model.Payslip.findOne(options);
-    if(checkPayslip) return {
-        message: "Payslip already initiated",
-        isSuccess: false
-    }
 
-    console.log("Generated Payslip: " + JSON.stringify(payslip));
+    var payslipString = JSON.stringify(req.query.payslip);
 
-    var hash = util.getHash(JSON.stringify(payslip));
+    console.log("Generated Payslip: " + payslipString);
+
+    var hash = util.getHash(payslipString);
     var sign = util.getSignatureByHash(hash, secret);
     var base64hash = hash.toString('base64');
     var base64sign = sign.toString('base64');
+    issue.data = escape.escapeQuotes(payslipString);
     
     var issue = {
-        pid:payslip.pid,
+        pid:String(Number(app.autoID.get('issue_max_pid')) + 1),
         iid:issuerid,
         hash: base64hash,
         sign: base64sign,
@@ -364,26 +337,12 @@ app.route.post('/payslip/initialIssue',async function(req,cb){
         level++;
     }
     issue.authLevel = level;
-    
-    payslip.earnings = Buffer.from(JSON.stringify(req.query.earnings)).toString('base64');
-    payslip.deductions = Buffer.from(JSON.stringify(req.query.deductions)).toString('base64');
-    payslip.identity = employee.identity;
-    
-    app.sdb.create("payslip", payslip);
+
     app.sdb.create("issue", issue);
     
-    app.autoID.increment('payslip_max_pid');
+    app.autoID.increment('issue_max_pid');
 
-    var activityMessage = "Payslip initiated for " + employee.email + " for the month " + payslip.month + " " + payslip.year + " by  " + issuer.email;
-    app.sdb.create('activity', {
-        activityMessage: activityMessage,
-        pid: payslip.pid,
-        timestampp: new Date().getTime(),
-        atype: 'payslip'
-    });
-
-    await blockWait();
-
+    await blockWait(); 
 
     return {
         message: "Payslip initiated",

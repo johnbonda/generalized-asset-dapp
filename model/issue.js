@@ -5,6 +5,7 @@ module.exports = {
             name: 'pid',
             type: 'String', 
             length: 255,
+            primary_key: true
         },
         {
             name: 'iid',
@@ -53,6 +54,11 @@ module.exports = {
         },
         {
             name: 'did',
+            type: 'String',
+            length: 255
+        },
+        {
+            name: 'data',
             type: 'String',
             length: 255
         }

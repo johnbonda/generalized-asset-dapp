@@ -30,7 +30,7 @@ var res=await app.model.Employee.findAll({
     condition: {
         deleted: '0'
     },
-    fields:['empid','name','designation'],
+    fields:['empid','name'],
     limit: req.query.limit,
     offset: req.query.offset,
 })
@@ -54,9 +54,9 @@ app.route.post('/recentIssued', async function(req, cb)
         limit: req.query.limit
     });
     for (i in res){
-        var payslip=await app.model.Payslip.findOne({
-            condition:{
-                pid:res[i].pid
+        var employee = await app.model.Employee.findOne({
+            condition: {
+                empid: res[i].empid
             }
         });
 
@@ -67,10 +67,9 @@ app.route.post('/recentIssued', async function(req, cb)
             fields: ['email']
         })
 
-        res[i].name=payslip.name;
-        res[i].empid=payslip.empid;
-        res[i].month = payslip.month;
-        res[i].year = payslip.year;
+        res[i].name= employee.name;
+        res[i].empid=employee.empid;
+        res[i].empemail = employee.email;
         res[i].issuedBy = issuer.email;
     } 
   return res;
@@ -91,6 +90,7 @@ app.route.post('/getEmployees', async function(req, cb)
         limit: req.query.limit,
         offset: req.query.offset
     });
+    
     return {
         total: total,
         employees: employees
@@ -163,19 +163,3 @@ app.route.post('/employee/id/exists', async function(req, cb){
         message: "Not found in " + JSON.stringify(fields)
     }
 });
-
-app.route.post('/getCategories', async function(req, cb){
-    var categories = await app.model.Category.findAll({
-        condition: {
-            deleted: '0'
-        },
-        fields: ['name']
-    });
-    var array = [];
-    for(i in categories){
-        array.push(categories[i].name)
-    }
-    return {
-        categories: array
-    }
-})
