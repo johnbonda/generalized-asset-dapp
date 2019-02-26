@@ -11,7 +11,6 @@ var SwaggerCall = require("../utils/SwaggerCall");
 var logger = require("../utils/logger");
 var locker = require("../utils/locker");
 var blockWait = require("../utils/blockwait");
-var escape = require("../utils/escape");
 
 
 
@@ -166,36 +165,6 @@ module.exports.getToken = async function(req, cb){
 
 app.route.post('/getToken', module.exports.getToken)
 
-
-//start
-app.route.post('/payslip/pendingIssues', async function(req, cb){  // High intensive call, need to find an alternative
-
-    logger.info("Entered /payslip/pendingIssues API");
-    var result = await app.model.Employee.findAll({});
-    var array = []; 
-    for(obj in result){
-        var options = {
-            empid: result[obj].empid,
-            month: req.query.month,
-            year: req.query.year,
-        }
-        let response = await app.model.Payslip.findOne({
-            condition: options,
-            fields:['pid']
-        });
-        if(!response){
-             array.push(result[obj]);
-        }
-        // else{
-        //     let rejresponse = await app.model.Reject.findOne({condition:{pid:response.pid}})
-        //     if(rejresponse){
-        //         array.push(result[obj]);
-        //     }
-        // }
-    }
-    return array;
-})
-
 //On issuer dashboard to display confirmed payslips which are confirmed by all authorizers 
 //GET call
 //inputs:month and year
@@ -215,20 +184,10 @@ app.route.post('/payslip/confirmedIssues',async function(req,cb){
         limit: req.query.limit,
         offset: req.query.offset
     });
-    var confirmedIssuesPids = [];
-    for(i in confirmedIssues){
-        confirmedIssuesPids.push(confirmedIssues[i].pid);
-    }
-    var confirmedPayslips = await app.model.Payslip.findAll({
-        condition: {
-            pid: {
-                $in: confirmedIssuesPids
-            }
-        }
-    });
+    
     return {
         total: total,
-        confirmedPayslips: confirmedPayslips
+        confirmedPayslips: confirmedIssues
     }
     
 })
@@ -290,11 +249,16 @@ app.route.post('/payslip/initialIssue',async function(req,cb){
          app.sdb.update('issuer', {publickey: publickey}, {iid:issuerid});
      }
 
-     req.query.payslip.identity = identity;
+     if(!req.query.data) return {
+         isSuccess: false,
+         message: "Please provide the payslip object"
+     }
+
+     req.query.data.identity = identity;
      
     // Check Payslip already issued
 
-    var payslipString = JSON.stringify(req.query.payslip);
+    var payslipString = JSON.stringify(req.query.data);
 
     console.log("Generated Payslip: " + payslipString);
 
@@ -302,7 +266,6 @@ app.route.post('/payslip/initialIssue',async function(req,cb){
     var sign = util.getSignatureByHash(hash, secret);
     var base64hash = hash.toString('base64');
     var base64sign = sign.toString('base64');
-    issue.data = escape.escapeQuotes(payslipString);
     
     var issue = {
         pid:String(Number(app.autoID.get('issue_max_pid')) + 1),
@@ -316,6 +279,8 @@ app.route.post('/payslip/initialIssue',async function(req,cb){
         transactionId: '-',
         did: department.did
     }
+
+    issue.data = payslipString;
 
     var level = 1;
     while(1){
@@ -394,12 +359,12 @@ app.route.post('/authorizers/pendingSigns',async function(req,cb){
                     total++;
                     if(iterator++ < req.query.offset) continue;
                     if(pendingSignatureIssues.length >= req.query.limit) continue;
-                    var payslip = await app.model.Payslip.findOne({
+                    var employee = await app.model.Employee.findOne({
                         condition: {
-                            pid: issues[j].pid
+                            empid: issues[j].empid
                         }
                     });
-                    issues[j].email = payslip.email;
+                    issues[j].email = employee.email;
                     var totalLevels = await app.model.Department.findOne({
                         condition: {
                             did: issues[j].did
@@ -420,7 +385,7 @@ app.route.post('/authorizers/pendingSigns',async function(req,cb){
 
 app.route.post('/payslip/getPayslip', async function(req, cb){
     logger.info("Entered /payslip/getPayslip API");
-    var payslip = await app.model.Payslip.findOne({
+    var payslip = await app.model.Issue.findOne({
         condition: {
             pid: req.query.pid
         }
@@ -429,9 +394,6 @@ app.route.post('/payslip/getPayslip', async function(req, cb){
         isSuccess: false,
         message: "Invalid Payslip ID"
     }
-    payslip.identity = JSON.parse(Buffer.from(payslip.identity, 'base64').toString());
-    payslip.earnings = JSON.parse(Buffer.from(payslip.earnings, 'base64').toString());
-    payslip.deductions = JSON.parse(Buffer.from(payslip.deductions, 'base64').toString());
 
     return {
         isSuccess: true,
@@ -496,11 +458,6 @@ app.route.post('/authorizer/authorize',async function(req,cb){
             message: "Already authorized",
             isSuccess: false
         }
-        var payslip = await app.model.Payslip.findOne({
-            condition: {
-                pid:pid
-            }
-        });
 
         var issuer = await app.model.Issuer.findOne({
             condition: {
@@ -512,13 +469,7 @@ app.route.post('/authorizer/authorize',async function(req,cb){
             isSuccess: false
         }
 
-        console.log("Queried Payslip: " + JSON.stringify(payslip));
-
-        payslip.identity = JSON.parse(Buffer.from(payslip.identity, 'base64').toString());
-        payslip.earnings = JSON.parse(Buffer.from(payslip.earnings, 'base64').toString());
-        payslip.deductions = JSON.parse(Buffer.from(payslip.deductions, 'base64').toString());
-
-        var hash = util.getHash(JSON.stringify(payslip));
+        var hash = util.getHash(issue.data);
         var base64hash = hash.toString('base64');
         console.log("issue.hash: " + issue.hash);
         console.log("base64hash: " + base64hash);
@@ -588,31 +539,25 @@ app.route.post('/authorizer/reject',async function(req,cb){
     logger.info("Entered /authorizer/reject API");
     await locker('/authorizer/reject');
 
-    var payslip = await app.model.Payslip.findOne({
-        condition: {
-            pid: req.query.pid
-        }
-    });
-    if(!payslip) return "Invalid payslip";
-
-    var employee = await app.model.Employee.findOne({
-        condition: {
-            empid: payslip.empid
-        }
-    });
-
     var authorizer = await app.model.Authorizer.findOne({
         condition: {
             aid: req.query.aid
         }
     });
-    if(!authorizer) return "Invalid Authorizer";
+    if(!authorizer) return {
+        isSuccess: false,
+        message: "Invalid Authorizer"
+    };
 
     var issue = await app.model.Issue.findOne({
         condition: {
             pid: req.query.pid
         }
     });
+    if(!issue) return {
+        isSuccess: false,
+        message: "Invalid Asset ID"
+    }
 
     var issuer = await app.model.Issuer.findOne({
         condition: {
@@ -624,7 +569,6 @@ app.route.post('/authorizer/reject',async function(req,cb){
     var message = req.query.message;
     //mail code is written here 
     app.sdb.update('issue', {status: 'rejected'}, {pid: pid});
-    app.sdb.update('payslip', {deleted: '1'}, {pid: pid});
     app.sdb.create('rejected', {
         pid: pid,
         aid: req.query.aid,
@@ -635,10 +579,10 @@ app.route.post('/authorizer/reject',async function(req,cb){
     var mailBody = {
         mailType: "sendRejected",
         mailOptions: {
-            to: [employee.email],
+            to: [issuer.email],
             authorizerEmail: authorizer.email, 
             message: message,
-            payslip: payslip
+            payslip: JSON.stringify(issue.data)
         }
     }
 
@@ -653,8 +597,6 @@ app.route.post('/authorizer/reject',async function(req,cb){
     });
 
     await blockWait();
-
-
 });
 
 app.route.post('/searchEmployee', async function(req, cb){
@@ -715,9 +657,7 @@ app.route.post("/registerEmployee", async function(req, cb){
     var lastName = req.query.lastName;
     var name = req.query.name;
     var uuid = req.query.empid;
-    var designation = req.query.designation;
-    var bank = req.query.bank;
-    var accountNumber = req.query.accountNumber;
+    var extra = JSON.stringify(req.query.extra);
     try{
         var identity = Buffer.from(JSON.stringify(req.query.identity)).toString('base64');
     }catch(err){
@@ -726,7 +666,6 @@ app.route.post("/registerEmployee", async function(req, cb){
             isSuccess: false
         }
     }
-    var salary = req.query.salary;
     var dappid = req.query.dappid;
     var token = req.query.token;
     var groupName = req.query.groupName;
@@ -860,15 +799,12 @@ app.route.post("/registerEmployee", async function(req, cb){
                 //empid: app.autoID.increment('employee_max_empid'),
                 empid: uuid,
                 name: name + " " +lastName,
-                designation: designation,
-                bank: bank,
-                accountNumber: accountNumber,
                 identity: identity,
                 iid: issuer.iid,
-                salary: salary,
                 walletAddress: wallet.walletAddress,
                 department: req.query.department,
-                deleted: "0"
+                deleted: "0",
+                extra: extra
             }
 
             console.log("About to make a row");
@@ -924,14 +860,11 @@ app.route.post("/registerEmployee", async function(req, cb){
                 email: email,
                 empid: uuid,
                 name: name + " " + lastName,
-                designation: designation,
-                bank: bank,
-                accountNumber: accountNumber,
                 identity: identity,
                 iid: issuer.iid,
-                salary: salary,
                 token: jwtToken,
-                department: req.query.department
+                department: req.query.department,
+                extra: extra
             }
             app.sdb.create("pendingemp", crea);
             console.log("Asking address");

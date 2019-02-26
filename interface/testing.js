@@ -153,3 +153,18 @@ app.route.post('/populateBkvs', async function(req, cb){
 
     await blockWait();
 })
+
+app.route.post("/testingescapes", async function(req, res){
+    app.sdb.create("testing", {
+        test: req.query.test,
+        value: req.query.value
+    });
+})
+
+app.route.post("/gettingescapes", async function(req, res){
+    var result = await app.model.Testing.findAll();
+    return {
+        result: result,
+        isSuccess: true
+    }
+})

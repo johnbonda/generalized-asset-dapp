@@ -18,30 +18,24 @@ app.route.post("/issueTransactionCall", async function(req, res){
         }
     });
 
-    var payslip = await app.model.Payslip.findOne({
-        condition: {
-            pid: pid
-        }
-    });
-
-    if(!payslip) return {
-        message: "Invalid Payslip",
-        isSuccess: false
-    }
-
     var issue = await app.model.Issue.findOne({
         condition: {
             pid: pid
         }
     });
 
+    if(!issue) return {
+        message: "Invalid Asset",
+        isSuccess: false
+    }
+
     if(issue.status === 'issued') return {
-        message: "Payslip already issued",
+        message: "Asset already issued",
         isSuccess: false
     }
 
     if(issue.status === 'pending') return {
-        message: "Payslip not Authorized",
+        message: "Asset not Authorized",
         isSuccess: false
     }
 
@@ -52,21 +46,17 @@ app.route.post("/issueTransactionCall", async function(req, res){
     
     var employee = await app.model.Employee.findOne({
         condition: {
-            empid: payslip.empid
+            empid: issue.empid
         }
     });
     if(!employee) return {
         message: "Invalid employee",
         isSuccess: false
     }
-
-    payslip.identity = JSON.parse(Buffer.from(payslip.identity, 'base64').toString());
-    payslip.earnings = JSON.parse(Buffer.from(payslip.earnings, 'base64').toString());
-    payslip.deductions = JSON.parse(Buffer.from(payslip.deductions, 'base64').toString());
     
     // if(issue.status !== "authorized") return "Payslip not authorized yet";
 
-    var array = [employee.walletAddress, "payslip", payslip];
+    var array = [employee.walletAddress, "payslip", JSON.parse(issue.data)];
 
     transactionParams.args = JSON.stringify(array);
     transactionParams.type = 1003;
@@ -77,16 +67,15 @@ app.route.post("/issueTransactionCall", async function(req, res){
     console.log(JSON.stringify(transactionParams));
 
     var response = await DappCall.call('PUT', "/unsigned", transactionParams, req.query.dappid,0);
-    if(response.success){
-        app.sdb.update('issue', {status: "issued"}, {pid: pid});  
-        app.sdb.update('issue', {timestampp: new Date().getTime()}, {pid: pid});  
-    }
+    
+    app.sdb.update('issue', {status: "issued"}, {pid: pid});  
+    app.sdb.update('issue', {timestampp: new Date().getTime()}, {pid: pid});  
 
     var mailBody = {
         mailType: "sendIssued",
         mailOptions: {
             to: [employee.email],
-            payslip: payslip
+            payslip: JSON.parse(issue.data)
         }
     }
 
