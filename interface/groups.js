@@ -343,51 +343,51 @@ app.route.post('/authorizers/statistics', async function(req, cb){
     }
 });
 
-app.route.post('/issuer/pendingIssues', async function(req, cb){
+// app.route.post('/issuer/pendingIssues', async function(req, cb){
 
-    var condition = {
-        iid: req.query.iid,
-        deleted: '0'
-    }
-    if(req.query.department) condition[department] = req.query.department;
-    if(req.query.designation) condition[designation] = req.query.designation;
+//     var condition = {
+//         iid: req.query.iid,
+//         deleted: '0'
+//     }
+//     if(req.query.department) condition[department] = req.query.department;
+//     if(req.query.designation) condition[designation] = req.query.designation;
 
-    var result = await app.model.Employee.findAll({
-        condition: condition
-    });
+//     var result = await app.model.Employee.findAll({
+//         condition: condition
+//     });
 
-    var array = []; 
-    var total = 0;
-    var iterator = 0;
-    if(!req.query.limit) req.query.limit = Number.POSITIVE_INFINITY;
-    if(!req.query.offset) req.query.offset = 0;
+//     var array = []; 
+//     var total = 0;
+//     var iterator = 0;
+//     if(!req.query.limit) req.query.limit = Number.POSITIVE_INFINITY;
+//     if(!req.query.offset) req.query.offset = 0;
 
-    for(obj in result){
-        var options = {
-            empid: result[obj].empid,
-            month: req.query.month,
-            year: req.query.year,
-        }
-        let response = await app.model.Payslip.findOne({
-            condition: options,
-            fields:['pid', 'month', 'year']
-        });
-        if(!response){
-            total++;
-            if(iterator++ < req.query.offset) continue;
-            if(array.length >= req.query.limit) continue;
+//     for(obj in result){
+//         var options = {
+//             empid: result[obj].empid,
+//             month: req.query.month,
+//             year: req.query.year,
+//         }
+//         let response = await app.model.Payslip.findOne({
+//             condition: options,
+//             fields:['pid', 'month', 'year']
+//         });
+//         if(!response){
+//             total++;
+//             if(iterator++ < req.query.offset) continue;
+//             if(array.length >= req.query.limit) continue;
 
-             result[obj].month = req.query.month;
-             result[obj].year = req.query.year;
-             array.push(result[obj]);
-        }
-    }
-    return {
-        total: total,
-        pendingIssues: array,
-        isSuccess: true
-    }
-});
+//              result[obj].month = req.query.month;
+//              result[obj].year = req.query.year;
+//              array.push(result[obj]);
+//         }
+//     }
+//     return {
+//         total: total,
+//         pendingIssues: array,
+//         isSuccess: true
+//     }
+// });
 
 app.route.post('/issuer/authorizedIssues', async function(req, cb){
     var authorizedIssues = await app.model.Issue.findAll({
@@ -398,18 +398,6 @@ app.route.post('/issuer/authorizedIssues', async function(req, cb){
         limit: req.query.limit,
         offset: req.query.offset
     })
-
-    for(i in authorizedIssues) {
-        var payslip = await app.model.Payslip.findOne({
-            condition: {
-                pid: authorizedIssues[i].pid
-            },
-            fields: ['name', 'month', 'year']
-        });
-        authorizedIssues[i].empname = payslip.name;
-        authorizedIssues[i].month = payslip.month,
-        authorizedIssues[i].year = payslip.year
-    }
 
     return {
         isSuccess: true,

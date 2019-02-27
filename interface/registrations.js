@@ -176,7 +176,7 @@ app.route.post('/payslips/employee/issued', async function(req, cb){
         fields: ['empid']
     });
     if(!employee) return {
-        message: "Address not associated with any employee",
+        message: "Address not associated with any Recipient",
         isSuccess: false
     }
 
@@ -193,11 +193,6 @@ app.route.post('/payslips/employee/issued', async function(req, cb){
     });
 
     for(i in result){
-        var payslip = await app.model.Payslip.findOne({
-            condition: {
-                pid: result[i].pid
-            }
-        });
         var issuer = await app.model.Issuer.findOne({
             condition: {
                 iid: result[i].iid
@@ -209,8 +204,6 @@ app.route.post('/payslips/employee/issued', async function(req, cb){
         delete result[i].transactionId;
         result[i].transaction = transaction;
         result[i].issuedBy = issuer.email;
-        result[i].month = payslip.month;
-        result[i].year = payslip.year;
     }
 
     return {
@@ -220,102 +213,102 @@ app.route.post('/payslips/employee/issued', async function(req, cb){
 
 })
 
-app.route.post('/payslips/employee/issued/search', async function(req, cb){
-    logger.info("Entered payslips/employee/issued/search");
+// app.route.post('/payslips/employee/issued/search', async function(req, cb){
+//     logger.info("Entered payslips/employee/issued/search");
 
-    var employee = await app.model.Employee.findOne({
-        condition: {
-            walletAddress: req.query.walletAddress
-        }, 
-        fields: ['empid']
-    });
-    if(!employee) return {
-        message: "Address not associated with any employee",
-        isSuccess: false
-    }
+//     var employee = await app.model.Employee.findOne({
+//         condition: {
+//             walletAddress: req.query.walletAddress
+//         }, 
+//         fields: ['empid']
+//     });
+//     if(!employee) return {
+//         message: "Address not associated with any employee",
+//         isSuccess: false
+//     }
 
-    if(req.query.month.length){
-        let result = [];
-        let payslip = await app.model.Payslip.findOne({
-            condition: {
-                empid: employee.empid,
-                month: req.query.month,
-                year: req.query.year
-            },
-            fields: ['pid', 'month', 'year']
-        });
-        if(!payslip) return {
-            message: "No payslip",
-            isSuccess: false
-        }
-        var issue = await app.model.Issue.findOne({
-            condition: {
-                pid: payslip.pid,
-                status: 'issued'
-            }
-        });
+//     if(req.query.month.length){
+//         let result = [];
+//         let payslip = await app.model.Payslip.findOne({
+//             condition: {
+//                 empid: employee.empid,
+//                 month: req.query.month,
+//                 year: req.query.year
+//             },
+//             fields: ['pid', 'month', 'year']
+//         });
+//         if(!payslip) return {
+//             message: "No payslip",
+//             isSuccess: false
+//         }
+//         var issue = await app.model.Issue.findOne({
+//             condition: {
+//                 pid: payslip.pid,
+//                 status: 'issued'
+//             }
+//         });
 
-        if(!issue) return {
-            message: "Payslip not issued yet",
-            isSuccess: false
-        }
+//         if(!issue) return {
+//             message: "Payslip not issued yet",
+//             isSuccess: false
+//         }
 
-        var issuer = await app.model.Issuer.findOne({
-            condition: {
-                iid: issue.iid
-            },
-            fields: ['email']
-        });
+//         var issuer = await app.model.Issuer.findOne({
+//             condition: {
+//                 iid: issue.iid
+//             },
+//             fields: ['email']
+//         });
 
-        if(issuer) issue.issuedBy = issuer.email;
-        else issue.issuedBy = "Deleted Issuer";
+//         if(issuer) issue.issuedBy = issuer.email;
+//         else issue.issuedBy = "Deleted Issuer";
 
-        issue.month = payslip.month;
-        issue.year = payslip.year;  
-        result.push(issue);   
+//         issue.month = payslip.month;
+//         issue.year = payslip.year;  
+//         result.push(issue);   
         
-        return {
-            issuedPayslips: result,
-            isSuccess: true
-        }
-    }
-    else{
-        let result = [];
-        let payslips = await app.model.Payslip.findAll({
-            condition: {
-                empid: employee.empid,
-                year: req.query.year
-            },
-            fields: ['pid', 'month', 'year']
-        });
-        for(i in payslips){
-            let issue = await app.model.Issue.findOne({
-                condition: {
-                    pid: payslips[i].pid,
-                    status: 'issued'
-                }
-            });
-            if(!issue) continue;
-            let issuer = await app.model.Issuer.findOne({
-                condition: {
-                    iid: issue.iid
-                },
-                fields: ['email']
-            });
-            if(issuer) issue.issuedBy = issuer.email;
-            else issue.issuedBy = "Deleted Issuer";
+//         return {
+//             issuedPayslips: result,
+//             isSuccess: true
+//         }
+//     }
+//     else{
+//         let result = [];
+//         let payslips = await app.model.Payslip.findAll({
+//             condition: {
+//                 empid: employee.empid,
+//                 year: req.query.year
+//             },
+//             fields: ['pid', 'month', 'year']
+//         });
+//         for(i in payslips){
+//             let issue = await app.model.Issue.findOne({
+//                 condition: {
+//                     pid: payslips[i].pid,
+//                     status: 'issued'
+//                 }
+//             });
+//             if(!issue) continue;
+//             let issuer = await app.model.Issuer.findOne({
+//                 condition: {
+//                     iid: issue.iid
+//                 },
+//                 fields: ['email']
+//             });
+//             if(issuer) issue.issuedBy = issuer.email;
+//             else issue.issuedBy = "Deleted Issuer";
 
-            issue.month = payslips[i].month;
-            issue.year = payslips[i].year;  
-            result.push(issue);
-        }
+//             issue.month = payslips[i].month;
+//             issue.year = payslips[i].year;  
+//             result.push(issue);
+//         }
 
-        return {
-            issuedPayslips: result,
-            isSuccess: true
-        }
-    }
-})
+//         return {
+//             issuedPayslips: result,
+//             isSuccess: true
+//         }
+//     }
+// })
 
 app.route.post('/payslip/getIssuedByPid', async function(req, cb){
     var issue = await app.model.Issue.findOne({
@@ -329,12 +322,6 @@ app.route.post('/payslip/getIssuedByPid', async function(req, cb){
         message: "No Payslip",
         isSuccess: false
     }
-
-    var payslip = await app.model.Payslip.findOne({
-        condition: {
-            pid: issue.pid
-        }
-    });
 
     var auths = await app.model.Cs.findAll({
         condition: {
@@ -364,7 +351,6 @@ app.route.post('/payslip/getIssuedByPid', async function(req, cb){
 
     return {
         issue: issue,
-        payslip: payslip,
         authorizedBy: auths,
         isSuccess: true
     }
@@ -379,7 +365,7 @@ app.route.post('/payslip/returnHash', async function(req, cb){
         fields: ['hash']
     });
     if(!issue) return {
-        message: "Invalid Issued Payslip",
+        message: "Invalid Issued Asset",
         isSuccess: false
     }
     return {
@@ -412,20 +398,12 @@ app.route.post('/employee/payslips/statistic', async function(req, cb){
         offset: req.query.offset
     });
     for(i in issues){
-        var payslip = await app.model.Payslip.findOne({
-            condition: {
-                pid: issues[i].pid
-            },
-            fields: ['pid', 'month', 'year']
-        });
         var issuer = await app.model.Issuer.findOne({
             condition: {
                 iid: issues[i].iid
             },
             fields: ['email']
         })
-        issues[i].month = payslip.month;
-        issues[i].year = payslip.year;
         issues[i].issuedBy = issuer.email;
     }
     return {
@@ -442,15 +420,9 @@ app.route.post('/payslip/statistic', async function(req, cb){
         }
     });
     if(!issue) return {
-        message: "Invalid payslip",
+        message: "Invalid issue",
         isSuccess: false
     }
-
-    var payslip = await app.model.Payslip.findOne({
-        condition: {
-            pid: req.query.pid
-        }
-    });
     var issuer = await app.model.Issuer.findOne({
         condition: {
             iid: issue.iid
@@ -490,13 +462,8 @@ app.route.post('/payslip/statistic', async function(req, cb){
         signatures[i].email = authorizer.email
     }
 
-    payslip.identity = JSON.parse(Buffer.from(payslip.identity, 'base64').toString());
-    payslip.earnings = JSON.parse(Buffer.from(payslip.earnings, 'base64').toString());
-    payslip.deductions = JSON.parse(Buffer.from(payslip.deductions, 'base64').toString());
-
     var result = {
         issue: issue,
-        payslip: payslip,
         issuer: issuer,
         signedAuthorizersCount: signatures.length,
         signatures: signatures,
@@ -545,14 +512,19 @@ app.route.post('/authorizer/rejecteds', async function(req, cb){
         offset: req.query.offset
     });
     for(i in rejecteds){
-        let payslip = await app.model.Payslip.findOne({
+        let payslip = await app.model.Issue.findOne({
             condition: {
                 pid: rejecteds[i].pid
             }
         });
-        rejecteds[i].employee = payslip.email;
-        rejecteds[i].month = payslip.month;
-        rejecteds[i].year = payslip.year;
+        var employee = await app.model.Employee.findOne({
+            condition: {
+                empid: payslip.empid
+            }
+        });
+
+        rejecteds[i].employee = employee.email;
+        rejecteds[i].issue = payslip;
 
         var issuer = await app.model.Issuer.findOne({
             condition: {
@@ -648,16 +620,6 @@ app.route.post('/getPayedPayslip', async function(req, cb){
     //     result: result,
     //     isSuccess: true
     // }
-    
-    var payslip = await app.model.Payslip.findOne({
-        condition: {
-            pid: pid
-        }
-    });
-
-    payslip.identity = JSON.parse(Buffer.from(payslip.identity, 'base64').toString());
-    payslip.earnings = JSON.parse(Buffer.from(payslip.earnings, 'base64').toString());
-    payslip.deductions = JSON.parse(Buffer.from(payslip.deductions, 'base64').toString());
 
     var issuer = await app.model.Issuer.findOne({
         condition: {
@@ -680,8 +642,14 @@ app.route.post('/getPayedPayslip', async function(req, cb){
         signs[i].authorizer = authorizer.email
     }
 
+    var employee = await app.model.Employee.findOne({
+        condition: {
+            empid: issue.empid
+        }
+    });
+
     if(link.payed === '1') return {
-        payslip: payslip,
+        payslip: JSON.parse(issue.data),
         payment: true,
         issue: issue,
         issuer: issuer,
@@ -689,14 +657,8 @@ app.route.post('/getPayedPayslip', async function(req, cb){
         isSuccess: true
     }
 
-    delete payslip.earnings;
-    delete payslip.deductions;
-    delete payslip.grossSalary;
-    delete payslip.totalDeductions;
-    delete payslip.netSalary;
-
     return {
-        payslip: payslip,
+        employee: employee,
         payment: false,
         isSuccess: true,
         link: req.query.link,

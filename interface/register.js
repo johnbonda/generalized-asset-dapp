@@ -29,7 +29,7 @@ app.route.post('/employees', async function(req, cb){
         condition: {
             deleted: '0'
         },
-        fields: ['empid', 'name', 'designation'],
+        fields: ['empid', 'name'],
         limit: req.query.limit,
         offset: req.query.offset
     }
@@ -58,7 +58,7 @@ app.route.post('/employeeData', async function(req,cb){
 
     var result = await app.model.Employee.findOne(options);
     if(!result) return {
-        message: "Employee not found",
+        message: "Recipient not found",
         isSuccess: false
     }
 
@@ -209,7 +209,7 @@ app.route.post('/payslip/initialIssue',async function(req,cb){
        message: "Invalid Recipient",
        isSuccess: false
     }
-    var identity = JSON.parse(Buffer.from(employee.identity, 'base64').toString());
+    var identity = JSON.parse(employee.identity);
    
     var timestamp = new Date().getTime();
 
@@ -245,10 +245,6 @@ app.route.post('/payslip/initialIssue',async function(req,cb){
          message: "Issuer and recipient department doesn't match"
      }
 
-     if(issuer.publickey === '-'){
-         app.sdb.update('issuer', {publickey: publickey}, {iid:issuerid});
-     }
-
      if(!req.query.data) return {
          isSuccess: false,
          message: "Please provide the payslip object"
@@ -260,7 +256,15 @@ app.route.post('/payslip/initialIssue',async function(req,cb){
 
     var payslipString = JSON.stringify(req.query.data);
 
-    console.log("Generated Payslip: " + payslipString);
+    var duplicateCheck = await app.model.Issue.findOne({
+        condition: {
+            data: payslipString
+        }
+    });
+    if(duplicateCheck) return {
+        isSuccess: false,
+        message: "An issue with the same details already exists with ID: " + duplicateCheck.pid
+    }
 
     var hash = util.getHash(payslipString);
     var sign = util.getSignatureByHash(hash, secret);
@@ -304,6 +308,9 @@ app.route.post('/payslip/initialIssue',async function(req,cb){
     issue.authLevel = level;
 
     app.sdb.create("issue", issue);
+    if(issuer.publickey === '-'){
+        app.sdb.update('issuer', {publickey: publickey}, {iid:issuerid});
+    }
     
     app.autoID.increment('issue_max_pid');
 
@@ -432,7 +439,7 @@ app.route.post('/authorizer/authorize',async function(req,cb){
         }
 
         if(issue.status !== "pending") return {
-            message: "Payslip not pending",
+            message: "Issue is not pending",
             isSuccess: false
         }
 
@@ -445,7 +452,7 @@ app.route.post('/authorizer/authorize',async function(req,cb){
         });
         if(!authdept) return {
             isSuccess: false,
-            message: "Authorizer is not supposed to sign this payslip now"
+            message: "Authorizer is not supposed to sign this payslip"
         }
 
         var check = await app.model.Cs.findOne({
@@ -658,14 +665,7 @@ app.route.post("/registerEmployee", async function(req, cb){
     var name = req.query.name;
     var uuid = req.query.empid;
     var extra = JSON.stringify(req.query.extra);
-    try{
-        var identity = Buffer.from(JSON.stringify(req.query.identity)).toString('base64');
-    }catch(err){
-        return {
-            message: "Provide proper identity",
-            isSuccess: false
-        }
-    }
+    var identity = JSON.stringify(req.query.identity);
     var dappid = req.query.dappid;
     var token = req.query.token;
     var groupName = req.query.groupName;
@@ -710,7 +710,7 @@ app.route.post("/registerEmployee", async function(req, cb){
         deleted: '0'
     });
     if(identityEmpCheck) return {
-        message: "Employee with the same identity already exists",
+        message: "Recipient with the same identity already exists",
         isSuccess: false
     }
 
@@ -720,7 +720,7 @@ app.route.post("/registerEmployee", async function(req, cb){
         });
 
         if(result) return {
-            message: "Employee already registered",
+            message: "Recipient already registered",
             isSuccess: false
         }
 
@@ -729,7 +729,7 @@ app.route.post("/registerEmployee", async function(req, cb){
             deleted: "0"
         });
         if(result) return {
-            message: "Employee with Employee ID already exists",
+            message: "Recipient with Recipient ID already exists",
             isSuccess: false
         }
 
@@ -744,7 +744,7 @@ app.route.post("/registerEmployee", async function(req, cb){
         if(response.isSuccess == false) {
             token = await register.getToken(0,0);
 
-            logger.info("Registering the employee on BKVS");
+            logger.info("Registering the Recipient on BKVS");
 
             console.log(token);
 
@@ -896,165 +896,22 @@ app.route.post("/payslips/verifyMultiple", async function(req, cb){
     var result = {};
 
     for(pid in pids){
-        var payslip = await app.model.Payslip.findOne({
+        var issue = await app.model.Issue.findOne({
             condition: {
                 pid: pids[pid]
             }
         });
         var req = {
             query: {
-                data: JSON.stringify(payslip)
+                data: issue.data
             }
         }
         var verificationResult = await verifyPayslip(req, 0);
-        verificationResult.jsonPayslip = JSON.stringify(payslip);
+        verificationResult.jsonPayslip = issue.data;
         result[pids[pid]] = verificationResult;
     }
     return result;
 });
-
-// inputs: limit, offset
-app.route.post("/payslip/month/status", async function(req, cb){
-    logger.info("Entered /payslip/month/status API");
-    var month = req.query.month;
-    var year = req.query.year;
-
-    var resultArray = {};
-    var total = 0;
-
-    var condition = {
-        deleted: '0'
-    }
-
-    if(req.query.designation){
-        condition.designation = req.query.designation;
-    }
-
-    var options = {
-        condition: condition
-    }
-
-    if(req.query.status){
-        var employees = await app.model.Employee.findAll(options);
-        var iterator = 0;
-        if(!req.query.limit) req.query.limit = Number.POSITIVE_INFINITY;
-        if(!req.query.offset) req.query.offset = 0;
-
-        for(i in employees){
-            var monthstatus = await monthStatus(month, year, employees[i]);
-            if(monthstatus.status === req.query.status){
-                total++;
-                if(iterator++ < req.query.offset) continue;
-                if(Object.keys(resultArray).length >= req.query.limit) continue;
-
-                resultArray[employees[i].empid] = monthstatus;
-            }
-        }
-    }
-    else {
-        options.limit = req.query.limit;
-        options.offset = req.query.offset;
-
-        var total = await app.model.Employee.count(condition);
-        var employees = await app.model.Employee.findAll(options);
-        for(i in employees){
-            resultArray[employees[i].empid] = await monthStatus(month, year, employees[i]);
-        }
-    }
-
-    return {
-        total: total,
-        result: resultArray
-    }
-});
-
-app.route.post('/employee/payslip/month/status', async function(req, cb){
-    var month = req.query.month;
-    var year = req.query.year;
-    
-    var employee = await app.model.Employee.findOne({
-        condition: {
-            empid: req.query.empid
-        },
-        fields: ['empid', 'name', 'designation']
-    })
-    if(!employee) return {
-        isSuccess: false,
-        message: "Employee not found"
-    }
-    var result = await monthStatus(month, year, employee);
-    result.empid = req.query.empid;
-    return {
-        result: result,
-        isSuccess: true
-    }
-})
-
-async function monthStatus(month, year, employee){
-
-    var initiated = await app.model.Payslip.findOne({
-        condition:{
-            empid: employee.empid,
-            month: month,
-            year: year,
-            deleted: '0'
-        }
-    });
-    
-    if(!initiated){
-        var checkRejected = await app.model.Payslip.findOne({
-            condition:{
-                empid: employee.empid,
-                month: month,
-                year: year,
-                deleted: '1'
-            }
-        });
-        if(checkRejected) return {
-            name: employee.name,
-            designation: employee.designation,
-            status: "Rejected",
-            pid: checkRejected.pid
-        }
-
-        return {
-            name: employee.name,
-            designation: employee.designation,
-            status: "Pending"
-        }
-    }
-
-    var issue = await app.model.Issue.findOne({
-        condition: {
-            pid: initiated.pid
-        }
-    });
-    if(issue.status === "issued"){
-        return {
-            name: employee.name,
-            designation: employee.designation,
-            status: "Issued",
-            pid: issue.pid
-        }
-    }
-
-    if(issue.status === 'authorized'){
-        return {
-            name: employee.name,
-            designation: employee.designation,
-            status: 'Authorized',
-            iid: issue.iid,
-            pid: issue.pid
-        }
-    }
-    
-    return {
-        name: employee.name,
-        designation: employee.designation,
-        status: "Initiated",
-        pid: issue.pid
-    }
-}
 
 app.route.post('/payslips/sentForAuthorization', async function(req, cb){
     logger.info("Entered /payslips/sentForAuthorization API");
@@ -1083,12 +940,13 @@ app.route.post('/authorizer/authorizedAssets', async function(req, cb){
             condition: {
                 pid: css[i].pid
             }
-        })
+        });
 
-        var payslip = await app.model.Payslip.findOne({
+        var employee = await app.model.Employee.findOne({
             condition: {
-                pid: css[i].pid
-            }
+                empid: issue.empid
+            },
+            fields: ['email']
         });
 
         var department = await app.model.Department.findOne({
@@ -1097,7 +955,7 @@ app.route.post('/authorizer/authorizedAssets', async function(req, cb){
             }
         });
         issue.totalLevels = department.levels;
-        issue.email = payslip.email;
+        issue.email = employee.email;
         result.push(issue);
     }
     return {
@@ -1126,72 +984,12 @@ app.route.post('/issuer/issuedPayslips', async function(req, cb){
             iid: req.query.iid,
             status: 'issued'
         },
-        fields: ['pid', 'timestampp', 'empid'],
         limit: req.query.limit,
         offset: req.query.offset
     })
-    console.log("Issues: " + JSON.stringify(issues));
-    for(i in issues){
-        var payslip = await app.model.Payslip.findOne({
-            condition: {
-                pid: issues[i].pid
-            },
-            fields: ['name', 'designation', 'month', 'year']
-        });
-        for(j in payslip){
-            issues[i][j] = payslip[j]
-        }
-    }
-    console.log("Issues: " + JSON.stringify(issues));
     return {
         total: total,
         result: issues,
-        isSuccess: true
-    }
-})
-
-app.route.post('/user/sharePayslips', async function(req, cb){
-    
-    var employee = await app.model.Employee.findOne({
-        condition: {
-            empid: req.query.empid
-        },
-        fields: ['name']
-    })
-    
-    if(!employee) return {
-        message: "Employee not found",
-        isSuccess: false
-    }
-    
-    var payslips = await app.model.Payslip.findAll({
-        condition: {
-            pid: {
-                $in: req.query.pids
-            }
-        }
-    });
-
-    for(i in payslips){
-        payslips[i].identity = JSON.parse(Buffer.from(payslips[i].identity, 'base64').toString());
-        payslips[i].earnings = JSON.parse(Buffer.from(payslips[i].earnings, 'base64').toString());
-        payslips[i].deductions = JSON.parse(Buffer.from(payslips[i].deductions, 'base64').toString());
-    }
-
-    var mailBody = {
-        mailType: "sendPayslips",
-        mailOptions: {
-            to: [req.query.email],
-            name: employee.name,
-            payslips: payslips,
-            dappid: req.query.dappid
-        }
-    }
-
-    mailCall.call("POST", "", mailBody, 0);
-
-    return {
-        payslips: payslips,
         isSuccess: true
     }
 })
