@@ -1,4 +1,5 @@
 var logger = require("../utils/logger");
+var utils = require('../utils/util');
 
 app.route.post('/totalCertsIssued', async function(req, cb)
 { 
@@ -163,3 +164,96 @@ app.route.post('/employee/id/exists', async function(req, cb){
         message: "Not found in " + JSON.stringify(fields)
     }
 });
+
+app.route.get('/assets/:status/count', async function(req){
+    var total = await app.model.Issue.count({
+        status: req.paramter.status
+    });
+    return {
+        total: total,
+        isSuccess: true
+    }
+});
+
+app.route.get('/assets/:status', async function(req){
+    var condition = {
+        status: req.paramter.status
+    }
+    var total = await app.model.Issue.count(condition);
+    var result = await app.model.Issue.findAll({
+        condition: condition,
+        limit: req.query.limit,
+        offset: req.query.offset
+    });
+    return {
+        total: total,
+        result: result,
+        isSuccess: true
+    }
+});
+
+app.route.get('/recipients/count', async function(req){
+    var total = await app.model.Employee.count({
+        deleted: '0'
+    });
+    return {
+        total: total,
+        isSuccess: true
+    }
+});
+
+app.route.post('/issuer/issuedAssets/monthyear/count', async function(req){
+    var issuer = await app.model.Issuer.exists({
+        iid: req.query.iid
+    });
+    if(!issuer) return {
+        isSuccess: false,
+        message: "Issuer doesn't exist"
+    }
+    var year = req.query.year;
+    var monthCount = [];
+    for(let i = 1; i <= 12; i++){
+        var limits = utils.getMilliSecondLimits(i, year);
+        var count = await app.model.Issue.count({
+            iid: req.query.iid,
+            status: 'issued',
+            timestampp: {
+                $gte: limits.first,
+                $lte: limits.last
+            }
+        });
+        monthCount.push(count);
+    }
+    return {
+        monthCount: monthCount,
+        isSuccess: true
+    }
+});
+
+app.route.post('/authorizer/authorizedAssets/month/count', async function(req){
+    var authorizer = await app.model.Authorizer.exists({
+        aid: req.query.aid
+    });
+    if(!authorizer) return {
+        isSuccess: false,
+        message: "Authorizer doesn't exist"
+    }
+    var year = req.query.year;
+    var monthCount = [];
+    for(let i = 1; i <= 12; i++){
+        var limits = utils.getMilliSecondLimits(i, year);
+        var count = await app.model.Cs.count({
+            aid: req.query.aid,
+            timestampp: {
+                $gte: limits.first,
+                $lte: limits.last
+            }
+        });
+        monthCount.push(count);
+    }
+    return {
+        monthCount: monthCount,
+        isSuccess: true
+    }
+});
+
