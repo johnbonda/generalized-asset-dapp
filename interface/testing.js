@@ -168,3 +168,12 @@ app.route.post("/gettingescapes", async function(req, res){
         isSuccess: true
     }
 })
+
+app.route.post("/testingDatabaseAccess", async function(req){
+    if(app.sideChainDatabase) return {
+        isSuccess: true
+    }
+    return {
+        isSuccess: false
+    }
+})

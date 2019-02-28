@@ -1,3 +1,6 @@
+var mysqlite3 = require('sqlite3');
+var path = require('path');
+
 module.exports = async function () {
   console.log('enter dapp init')
 
@@ -19,16 +22,17 @@ module.exports = async function () {
   app.registerFee(1008, '0', 'BEL')
   app.registerFee(1009, '0', 'BEL')
   app.registerFee(1010, '0', 'BEL')
-app.sdb.create("count",{
-  id:0,
-  pid:0,
-  aid:0,
-  iid:0,
-  empid:0
-});
 
-
+  console.log("Came herer?: " + __dirname);
+  
   app.events.on('newBlock', (block) => {
     console.log('new block received', block.height)
   })
+
+  app.sideChainDatabase = new mysqlite3.Database(path.join(__dirname, "blockchain.db"), (err) => {
+    if (err) {
+      throw err;
+    }
+    console.log('Connected to the blockchain database');
+  });
 }
