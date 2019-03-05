@@ -21,6 +21,11 @@ module.exports = {
             name: 'reason',
             type: 'String',
             length: 255,
+        },
+        {
+            name: 'timestampp',
+            type: 'Number',
+            length: 255
         }
     ]
 }

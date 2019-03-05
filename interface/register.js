@@ -275,7 +275,7 @@ app.route.post('/payslip/initialIssue',async function(req,cb){
         hash: base64hash,
         sign: base64sign,
         publickey:publickey,
-        timestampp:timestamp.toString(),
+        timestampp:timestamp,
         status:"pending",
         empid: employee.empid,
         transactionId: '-',
@@ -493,7 +493,7 @@ app.route.post('/authorizer/authorize',async function(req,cb){
             aid:authid,
             sign: base64sign,
             publickey: publickey,
-            timestampp: new Date().getTime().toString(),
+            timestampp: new Date().getTime(),
             deleted: '0'
         });
 
@@ -572,13 +572,14 @@ app.route.post('/authorizer/reject',async function(req,cb){
 
     var pid = req.query.pid;
     var message = req.query.message;
-    //mail code is written here 
+    var timestampp = new Date().getTime();
     app.sdb.update('issue', {status: 'rejected'}, {pid: pid});
     app.sdb.create('rejected', {
         pid: pid,
         aid: req.query.aid,
         iid: issue.iid,
-        reason: message
+        reason: message,
+        timestampp: timestampp
     });
 
     var mailBody = {
@@ -597,7 +598,7 @@ app.route.post('/authorizer/reject',async function(req,cb){
     app.sdb.create('activity', {
         activityMessage: activityMessage,
         pid: pid,
-        timestampp: new Date().getTime(),
+        timestampp: timestampp,
         atype: 'payslip'
     });
 
@@ -1138,6 +1139,7 @@ app.route.post('/registerUser/', async function(req, cb){
             isSuccess: true
         }
 
+        var timestampp = new Date().getTime();
         switch(role){
 
             case "issuer": 
@@ -1146,7 +1148,7 @@ app.route.post('/registerUser/', async function(req, cb){
                     iid: app.autoID.increment('issuer_max_iid'),
                     publickey: "-",
                     email: email,
-                    timestampp: new Date().getTime(),
+                    timestampp: timestampp,
                     deleted: "0"
                 });
                 logger.info("Created an issuer");
@@ -1167,7 +1169,7 @@ app.route.post('/registerUser/', async function(req, cb){
                     aid: app.autoID.increment('authorizer_max_aid'),
                     publickey: "-",
                     email: email,
-                    timestampp: new Date().getTime(),
+                    timestampp: timestampp,
                     deleted: "0"
                 });
                 logger.info("Created an authorizer");
@@ -1197,7 +1199,7 @@ app.route.post('/registerUser/', async function(req, cb){
         app.sdb.create('activity', {
             activityMessage: activityMessage,
             pid: email,
-            timestampp: new Date().getTime(),
+            timestampp: timestampp,
             atype: role
         });
 
@@ -1364,11 +1366,11 @@ app.route.post('/generatePayslipLink', async function(req, cb){
         }
     });
     if(!issue) return {
-        message: "Invalid Payslip",
+        message: "Invalid Asset",
         isSuccess: false
     }
     if(issue.status !== 'issued') return {
-        message: "Payslip not issued yet",
+        message: "Asset not issued yet",
         isSuccess: false
     }
 
@@ -1386,22 +1388,18 @@ app.route.post('/generatePayslipLink', async function(req, cb){
         orderid: '-'
     });
 
-    var payslip = await app.model.Payslip.findOne({
+    var employee = await app.model.Employee.findOne({
         condition: {
-            pid: req.query.pid
-        },
-        fields: ['name', 'month', 'year', 'employer']
-    });
+            empid: issue.empid
+        }
+    })
 
     var mailBody = {
         mailType: "sendPayslipLink",
         mailOptions: {
             to: [req.query.email],
-            name: payslip.name,
-            link: link,
-            month: payslip.month,
-            year: payslip.year,
-            employer: payslip.employer
+            name: employee.name,
+            link: link
         }
     }
 
