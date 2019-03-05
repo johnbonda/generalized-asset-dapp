@@ -62,8 +62,6 @@ app.route.post('/employeeData', async function(req,cb){
         isSuccess: false
     }
 
-    result.identity = JSON.parse(Buffer.from(result.identity, 'base64').toString());
-
     return {
         employee: result,
         isSuccess: true
@@ -666,7 +664,7 @@ app.route.post("/registerEmployee", async function(req, cb){
     var uuid = req.query.empid;
     var extra = JSON.stringify(req.query.extra);
     var identity = JSON.stringify(req.query.identity);
-    var dappid = req.query.dappid;
+    var dappid = util.getDappID();
     var token = req.query.token;
     var groupName = req.query.groupName;
     var iid = req.query.iid
@@ -1003,7 +1001,7 @@ app.route.post('/registerUser/', async function(req, cb){
     var countryId = req.query.countryId;
     var name = req.query.name;
     var type = req.query.type;
-    var dappid = req.query.dappid;
+    var dappid = util.getDappID();
     var role = req.query.role;
     var departments = req.query.departments;
 

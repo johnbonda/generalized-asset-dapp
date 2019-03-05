@@ -5,6 +5,7 @@ var SwaggerCall = require('../utils/SwaggerCall.js');
 var logger = require("../utils/logger");
 var locker = require("../utils/locker");
 var blockWait = require("../utils/blockwait");
+var util = require("../utils/util");
 
 
 
@@ -138,7 +139,7 @@ app.route.post('/userlogin', async function (req, cb) {
 
      var mapEntryObj = {
         address: req.query.walletAddress,
-        dappid: req.query.dappid
+        dappid: util.getDappID()
     }
     var mapcall = await SuperDappCall.call('POST', '/mapAddress', mapEntryObj);
 

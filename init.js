@@ -1,5 +1,6 @@
 var mysqlite3 = require('sqlite3');
 var path = require('path');
+var util = require('./utils/util')
 
 module.exports = async function () {
   console.log('enter dapp init')
@@ -22,8 +23,6 @@ module.exports = async function () {
   app.registerFee(1008, '0', 'BEL')
   app.registerFee(1009, '0', 'BEL')
   app.registerFee(1010, '0', 'BEL')
-
-  console.log("Came herer?: " + __dirname);
   
   app.events.on('newBlock', (block) => {
     console.log('new block received', block.height)

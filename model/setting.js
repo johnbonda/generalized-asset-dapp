@@ -7,12 +7,7 @@ module.exports = {
             length: 255
         },
         {
-            name: 'earnings',
-            type: 'String',
-            length: 255,
-        },
-        {
-            name: 'deductions',
+            name: 'fields',
             type: 'String',
             length: 255,
         },

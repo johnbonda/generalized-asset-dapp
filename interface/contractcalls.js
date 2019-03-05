@@ -3,6 +3,7 @@ var mailCall = require("../utils/mailCall");
 var logger = require("../utils/logger");
 var locker = require("../utils/locker");
 var blockWait = require("../utils/blockwait");
+var util = require("../utils/util");
 
 
 
@@ -66,7 +67,7 @@ app.route.post("/issueTransactionCall", async function(req, res){
 
     console.log(JSON.stringify(transactionParams));
 
-    var response = await DappCall.call('PUT', "/unsigned", transactionParams, req.query.dappid,0);
+    var response = await DappCall.call('PUT', "/unsigned", transactionParams, util.getDappID(),0);
     
     app.sdb.update('issue', {status: "issued"}, {pid: pid});  
     app.sdb.update('issue', {timestampp: new Date().getTime()}, {pid: pid});  

@@ -2,6 +2,7 @@ var logger = require("../utils/logger");
 var SuperDappCall = require("../utils/SuperDappCall");
 var locker = require("../utils/locker");
 var blockWait = require("../utils/blockwait");
+var util = require('../utils/util');
 
 
 app.route.post('/issuers', async function(req, cb){
@@ -746,33 +747,30 @@ app.route.post('/department/get', async function(req, cb){
 })
 
 app.route.post('/customFields/define', async function(req, cb){
-    await locker('/customFields/define');
+    await locker('/assetFields/define');
     var setting = await app.model.Setting.findOne({
         condition: {
             id: '0'
         }
     })
     try{
-    var earnings = Buffer.from(JSON.stringify(req.query.earnings)).toString('base64');
-    var deductions = Buffer.from(JSON.stringify(req.query.deductions)).toString('base64');
-    var identity = Buffer.from(JSON.stringify(req.query.identity)).toString('base64');
+    var fields = JSON.stringify(req.query.fields)
+    var identity = JSON.stringify(req.query.identity);
     }catch(err){
         return {
-            message: "Enter valid inputs",
-            isSuccess: false
+            isSuccess: false,
+            message: "Please enter a valid JSON"
         }
     }
 
     if(setting){
-       app.sdb.update('setting', {earnings: earnings}, {id: '0'});
-       app.sdb.update('setting', {deductions: deductions}, {id: '0'});
+       app.sdb.update('setting', {fields: fields}, {id: '0'});
        app.sdb.update('setting', {identity: identity}, {id: '0'}); 
     }
     else{
         app.sdb.create('setting', {
             id: '0',
-            earnings: earnings,
-            deductions: deductions,
+            fields: fields,
             identity: identity
         })
     }
@@ -795,9 +793,8 @@ app.route.post('/customFields/get', async function(req, cb){
         isSuccess: false
     }
     return {
-        earnings: JSON.parse(Buffer.from(setting.earnings, 'base64').toString()),
-        deductions: JSON.parse(Buffer.from(setting.deductions, 'base64').toString()),
-        identity: JSON.parse(Buffer.from(setting.identity, 'base64').toString()),
+        fields: JSON.parse(setting.fields),
+        identity: JSON.parse(setting.identity),
         isSuccess: true
     }
 });
@@ -1286,7 +1283,7 @@ app.route.post('/getDepartments/authorizers', async function(req, cb){
                 deleted: '0'
             }
         });
-        var authArray = [];
+        var authArray = new Array(departments[i].levels);
         for(j in auths){
             var authorizer = await app.model.Authorizer.findOne({
                 condition: {
@@ -1307,3 +1304,130 @@ app.route.post('/getDepartments/authorizers', async function(req, cb){
         isSuccess: true
     }
 })
+
+// app.route.post('/departments/define/new', async function(req){
+//     var departmentObj = {
+//         name: "",
+//         subDepartments: req.query.departments
+//     }
+//     createDepartment(departmentObj, null);
+//     return {
+//         isSuccess: true
+//     };
+// })
+
+// function createDepartment(department, parent){
+//     let did = "None";
+//     if(parent){
+//         did = app.autoID.increment('department_max_did');
+//         var leaf = (department.subDepartments)?'0':'1';
+//         app.sdb.create('department', {
+//             did: did,
+//             name: department.name,
+//             levels: department.levels || 1,
+//             parent: parent,
+//             leaf: leaf
+//         });
+//     }
+
+//     if(department.subDepartments){
+//         for(i in department.subDepartments){
+//             createDepartment(department.subDepartments[i], did);
+//         }
+//     }
+// }
+
+// app.route.get('/departments/get/new', async function(req){
+//     var result = await getDepartments('None');
+//     return {
+//         isSuccess: true,
+//         departments: result
+//     }
+// });
+
+// async function getDepartments(parent){
+//     let departments = await app.model.Department.findAll({
+//         condition: {
+//             parent: parent
+//         }
+//     });
+//     for(i in departments){
+//         if(departments[i].leaf === '0')
+//             departments[i].subDepartments = await getDepartments(departments[i].did)
+//     }
+//     return departments;
+// }
+
+// async function getAllChildDepartments(parent){
+//     let departments = await app.model.Department.findAll({
+//         condition: {
+//             parent: parent
+//         },
+//         fields: ['did','leaf']
+//     });
+//     var copy = departments.slice();
+//     for(i in copy){
+//         if(copy[i].leaf === '0'){
+//             departments = departments.concat(await getAllChildDepartments(copy[i].did))
+//         }
+//     }
+//     return departments;
+// }
+
+// app.route.post('/departments/assets', async function(req){
+//     var departments = await getAllChildDepartments(req.query.did);
+//     var departmentArray = [req.query.did];
+//     for(i in departments){
+//         departmentArray.push(departments[i].did)
+//     }
+//     var condition = {
+//         did: {
+//             $in: departmentArray
+//         }
+//     }
+//     if(req.query.status){
+//         condition.status = req.query.status
+//     }
+//     if(req.query.month || req.query.year){
+//         var limits = {};
+//         if(req.query.month && req.query.year){
+//             limits = util.getMilliSecondLimits(req.query.month, req.query.year);
+//         }
+//         else if(req.query.month){
+//             limits = util.getMilliSecondLimits(req.query.month, new Date().getFullYear());
+//         }
+//         else{
+//             limits.first = util.getMilliSecondLimits(1, req.query.year).first;
+//             limits.last = util.getMilliSecondLimits(12, req.query.year).last;                                              
+//         }
+//         condition.timestampp = {
+//             $between: [limits.first, limits.last]
+//         }
+//     }
+//     if(req.query.iid){
+//         condition.iid = req.query.iid
+//     }
+
+//     if(req.query.aid){
+//         var authdept = await app.model.Authdept.findOne({
+//             aid: req.query.aid,
+//             did: {
+//                 $in: departmentArray
+//             }
+//         });
+//         condition.authLevel = authdept.level; 
+//     }
+//     var issues = await app.model.Issue.findAll({
+//         condition: condition,
+//         sort: {
+//             timestampp: -1
+//         },
+//         limit: req.query.limit,
+//         offset: req.query.offset
+//     });
+
+//     return{
+//         isSuccess: true,
+//         issues: issues
+//     }
+// })

@@ -74,5 +74,10 @@ module.exports = {
             first: first.getTime(),
             last: last.getTime()
         }
+    },
+
+    getDappID: function(){
+        var arr = __dirname.split('/');
+        return arr[arr.length - 2];
     }
 }
