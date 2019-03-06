@@ -35,3 +35,23 @@ module.exports = async function () {
     console.log('Connected to the blockchain database');
   });
 }
+
+var settingExists =  app.model.Setting.exists({
+  id: '0'
+});
+settingExists.then(function(data){
+  if(!data) 
+  app.sdb.create('setting', {
+    id: '0',
+    fields: JSON.stringify({
+      name: "Name",
+      id: "ID",
+      year: "Year",
+      degree: "Degree",
+      department: "Department"
+    }),
+    identity: JSON.stringify({
+      "Aadhar Card": "AdharNumber"
+    })
+  })
+})
