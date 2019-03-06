@@ -672,9 +672,14 @@ app.route.post('/department/define', async function(req, cb){
 // });
 
 app.route.post('/department/get', async function(req, cb){
-    var departments = await app.model.Department.findAll({})
+    var total = await app.model.Department.count();
+    var departments = await app.model.Department.findAll({
+        limit: req.query.limit,
+        offset: req.query.offset
+    })
 
     return {
+        total: total,
         departments: departments,
         isSuccess: true
     }
@@ -1232,60 +1237,51 @@ app.route.post('/getDepartments/authorizers', async function(req, cb){
 //     return departments;
 // }
 
-// app.route.post('/departments/assets', async function(req){
-//     var departments = await getAllChildDepartments(req.query.did);
-//     var departmentArray = [req.query.did];
-//     for(i in departments){
-//         departmentArray.push(departments[i].did)
-//     }
-//     var condition = {
-//         did: {
-//             $in: departmentArray
-//         }
-//     }
-//     if(req.query.status){
-//         condition.status = req.query.status
-//     }
-//     if(req.query.month || req.query.year){
-//         var limits = {};
-//         if(req.query.month && req.query.year){
-//             limits = util.getMilliSecondLimits(req.query.month, req.query.year);
-//         }
-//         else if(req.query.month){
-//             limits = util.getMilliSecondLimits(req.query.month, new Date().getFullYear());
-//         }
-//         else{
-//             limits.first = util.getMilliSecondLimits(1, req.query.year).first;
-//             limits.last = util.getMilliSecondLimits(12, req.query.year).last;                                              
-//         }
-//         condition.timestampp = {
-//             $between: [limits.first, limits.last]
-//         }
-//     }
-//     if(req.query.iid){
-//         condition.iid = req.query.iid
-//     }
+app.route.post('/department/assets', async function(req){
+    var condition = {
+        did: req.query.did
+    }
+    var departmentCheck = await app.model.Department.exists(condition);
+    if(!departmentCheck) return {
+        isSuccess: false,
+        message: "Invalid Department"
+    }
+    if(req.query.status){
+        condition.status = req.query.status
+    }
+    if(req.query.month || req.query.year){
+        var limits = {};
+        if(req.query.month && req.query.year){
+            limits = util.getMilliSecondLimits(req.query.month, req.query.year);
+        }
+        else if(req.query.month){
+            limits = util.getMilliSecondLimits(req.query.month, new Date().getFullYear());
+        }
+        else{
+            limits.first = util.getMilliSecondLimits(1, req.query.year).first;
+            limits.last = util.getMilliSecondLimits(12, req.query.year).last;                                              
+        }
+        condition.timestampp = {
+            $between: [limits.first, limits.last]
+        }
+    }
+    if(req.query.iid){
+        condition.iid = req.query.iid
+    }
 
-//     if(req.query.aid){
-//         var authdept = await app.model.Authdept.findOne({
-//             aid: req.query.aid,
-//             did: {
-//                 $in: departmentArray
-//             }
-//         });
-//         condition.authLevel = authdept.level; 
-//     }
-//     var issues = await app.model.Issue.findAll({
-//         condition: condition,
-//         sort: {
-//             timestampp: -1
-//         },
-//         limit: req.query.limit,
-//         offset: req.query.offset
-//     });
+    var total = await app.model.Issue.count(condition);
+    var issues = await app.model.Issue.findAll({
+        condition: condition,
+        sort: {
+            timestampp: -1
+        },
+        limit: req.query.limit,
+        offset: req.query.offset
+    });
 
-//     return{
-//         isSuccess: true,
-//         issues: issues
-//     }
-// })
+    return{
+        isSuccess: true,
+        total: total,
+        issues: issues
+    }
+})
