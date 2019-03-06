@@ -53,3 +53,8 @@ app.route.post('/query/employees', async function(req){
         employees: employees.result
     }
 });
+
+app.route.post('/query/department/assets', async function(req){
+    var parameters = [];
+    var queryString = 'select issue.* from issues '
+})

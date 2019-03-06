@@ -34,6 +34,39 @@ app.route.post('/issuer/statistic/pendingIssues', async function(req){
             timestampp: -1
         }
     });
+
+    // Just mapping code of departments and issuers
+    var departments = await app.model.Department.findAll();
+    var departmentsMapping = {};
+    for(let i in departments){
+        departmentsMapping[departments[i].did] = {
+            name: departments[i].name,
+            levels: departments[i].levels
+        }
+    }
+
+    var issuers = await app.model.Issuer.findAll({
+        fields: ['iid', 'email']
+    })
+    var issuerMapping = {};
+    for(let i in issuers){
+        issuerMapping[issuers[i].iid] = issuers[i].email
+    }
+    // Just mapping code of departments and issuers
+
+    for(let i in pendingIssues){
+       var employee = await app.model.Employee.findOne({
+           condition: {
+               empid: pendingIssues[i].empid
+           }
+       });
+       pendingIssues[i].receipientEmail = employee.email;
+       pendingIssues[i].receipientName = employee.name;
+       pendingIssues[i].totalLevels = departmentsMapping[pendingIssues[i].did].levels;
+       pendingIssues[i].departmentName = departmentsMapping[pendingIssues[i].did].name;
+       pendingIssues[i].issuerEmail = issuerMapping[pendingIssues[i].iid];
+    }
+
     return {
         isSuccess: true,
         total: total,
@@ -54,6 +87,46 @@ app.route.post('/issuer/statistic/rejectedIssues', async function(req){
             timestampp: -1
         }
     });
+
+    // Just mapping code of departments and issuers
+    var departments = await app.model.Department.findAll();
+    var departmentsMapping = {};
+    for(let i in departments){
+        departmentsMapping[departments[i].did] = {
+            name: departments[i].name,
+            levels: departments[i].levels
+        }
+    }
+
+    var issuers = await app.model.Issuer.findAll({
+        fields: ['iid', 'email']
+    })
+    var issuerMapping = {};
+    for(let i in issuers){
+        issuerMapping[issuers[i].iid] = issuers[i].email
+    }
+    // Just mapping code of departments and issuers
+
+    for(let i in rejectedIssues){
+        var issue = await app.model.Issue.findOne({
+            condition: {
+                pid: rejectedIssues[i].pid
+            }
+        });
+       var employee = await app.model.Employee.findOne({
+           condition: {
+               empid: issue.empid
+           }
+       });
+       rejectedIssues[i].receipientEmail = employee.email;
+       rejectedIssues[i].receipientName = employee.name;
+       rejectedIssues[i].authLevel = issue.authLevel;
+       rejectedIssues[i].did = issue.did;
+       rejectedIssues[i].totalLevels = departmentsMapping[issue.did].levels;
+       rejectedIssues[i].departmentName = departmentsMapping[issue.did].name;
+       rejectedIssues[i].issuerEmail = issuerMapping[rejectedIssues[i].iid];
+    }
+
     return {
         isSuccess: true,
         total: total,
@@ -75,6 +148,38 @@ app.route.post('/issuer/statistic/issuedIssues', async function(req){
             timestampp: -1
         }
     });
+
+    // Just mapping code of departments and issuers
+    var departments = await app.model.Department.findAll();
+    var departmentsMapping = {};
+    for(let i in departments){
+        departmentsMapping[departments[i].did] = {
+            name: departments[i].name,
+            levels: departments[i].levels
+        }
+    }
+
+    var issuers = await app.model.Issuer.findAll({
+        fields: ['iid', 'email']
+    })
+    var issuerMapping = {};
+    for(let i in issuers){
+        issuerMapping[issuers[i].iid] = issuers[i].email
+    }
+    // Just mapping code of departments and issuers
+
+    for(let i in issuedIssues){
+       var employee = await app.model.Employee.findOne({
+           condition: {
+               empid: issuedIssues[i].empid
+           }
+       });
+       issuedIssues[i].receipientEmail = employee.email;
+       issuedIssues[i].receipientName = employee.name;
+       issuedIssues[i].totalLevels = departmentsMapping[issuedIssues[i].did].levels;
+       issuedIssues[i].departmentName = departmentsMapping[issuedIssues[i].did].name;
+       issuedIssues[i].issuerEmail = issuerMapping[issuedIssues[i].iid];
+    }
     return {
         isSuccess: true,
         total: total,
@@ -172,6 +277,38 @@ app.route.post('/authorizer/statistic/signedIssues', async function(req){
             }
         }
     });
+
+     // Just mapping code of departments and issuers
+     var departments = await app.model.Department.findAll();
+     var departmentsMapping = {};
+     for(let i in departments){
+         departmentsMapping[departments[i].did] = {
+             name: departments[i].name,
+             levels: departments[i].levels
+         }
+     }
+
+     var issuers = await app.model.Issuer.findAll({
+         fields: ['iid', 'email']
+     })
+     var issuerMapping = {};
+     for(let i in issuers){
+         issuerMapping[issuers[i].iid] = issuers[i].email
+     }
+     // Just mapping code of departments and issuers
+
+     for(let i in signedIssues){
+        var employee = await app.model.Employee.findOne({
+            condition: {
+                empid: signedIssues[i].empid
+            }
+        });
+        signedIssues[i].receipientEmail = employee.email;
+        signedIssues[i].receipientName = employee.name;
+        signedIssues[i].totalLevels = departmentsMapping[signedIssues[i].did].levels;
+        signedIssues[i].departmentName = departmentsMapping[signedIssues[i].did].name;
+        signedIssues[i].issuerEmail = issuerMapping[signedIssues[i].iid];
+     }
     return {
         signedIssues: signedIssues,
         total: count,
@@ -202,6 +339,46 @@ app.route.post('/authorizer/statistic/rejectedIssues', async function(req){
             timestampp: -1
         }
     });
+
+    // Just mapping code of departments and issuers
+    var departments = await app.model.Department.findAll();
+    var departmentsMapping = {};
+    for(let i in departments){
+        departmentsMapping[departments[i].did] = {
+            name: departments[i].name,
+            levels: departments[i].levels
+        }
+    }
+
+    var issuers = await app.model.Issuer.findAll({
+        fields: ['iid', 'email']
+    })
+    var issuerMapping = {};
+    for(let i in issuers){
+        issuerMapping[issuers[i].iid] = issuers[i].email
+    }
+    // Just mapping code of departments and issuers
+
+    for(let i in rejected){
+        var issue = await app.model.Issue.findOne({
+            condition: {
+                pid: rejected[i].pid
+            }
+        });
+       var employee = await app.model.Employee.findOne({
+           condition: {
+               empid: issue.empid
+           }
+       });
+       rejected[i].receipientEmail = employee.email;
+       rejected[i].receipientName = employee.name;
+       rejected[i].authLevel = issue.authLevel;
+       rejected[i].did = issue.did;
+       rejected[i].totalLevels = departmentsMapping[issue.did].levels;
+       rejected[i].departmentName = departmentsMapping[issue.did].name;
+       rejected[i].issuerEmail = issuerMapping[rejected[i].iid];
+    }
+
     return {
         rejectedIssues: rejected,
         total: count,

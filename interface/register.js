@@ -346,6 +346,25 @@ app.route.post('/authorizers/pendingSigns',async function(req,cb){
         if(!req.query.limit) req.query.limit = Number.POSITIVE_INFINITY;
         if(!req.query.offset) req.query.offset = 0
 
+        // Just mapping code of departments and issuers
+        var departments = await app.model.Department.findAll();
+        var departmentsMapping = {};
+        for(i in departments){
+            departmentsMapping[departments[i].did] = {
+                name: departments[i].name,
+                levels: departments[i].levels
+            }
+        }
+
+        var issuers = await app.model.Issuer.findAll({
+            fields: ['iid', 'email']
+        })
+        var issuerMapping = {};
+        for(let i in issuers){
+            issuerMapping[issuers[i].iid] = issuers[i].email
+        }
+        // Just mapping code of departments and issuers
+
         for(let i in authdepts){
             var issues = await app.model.Issue.findAll({
                 condition: {
@@ -369,13 +388,12 @@ app.route.post('/authorizers/pendingSigns',async function(req,cb){
                             empid: issues[j].empid
                         }
                     });
-                    issues[j].email = employee.email;
-                    var totalLevels = await app.model.Department.findOne({
-                        condition: {
-                            did: issues[j].did
-                        }
-                    });
-                    issues[j].totalLevels = totalLevels.levels;
+                    issues[j].receipientEmail = employee.email;
+                    issues[j].receipientName = employee.name;
+                    issues[j].totalLevels = departmentsMapping[issues[j].did].levels;
+                    issues[j].departmentName = departmentsMapping[issues[j].did].name;
+                    issues[j].issuerEmail = issuerMapping[issues[j].iid];
+
                     pendingSignatureIssues.push(issues[j]);
                 }
             }
