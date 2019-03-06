@@ -188,10 +188,7 @@ app.route.post('/authorizers', async function(req, cb){
                     did: departments[j].did
                 }
             })
-            departmentArray.push({
-                name: department.name,
-                level: departments[j].level
-            });
+            departmentArray.push(department.name);
         }
         authorizers[i].departments = departmentArray;
         
