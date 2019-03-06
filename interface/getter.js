@@ -120,6 +120,7 @@ app.route.post('/issuer/statistic/rejectedIssues', async function(req){
        });
        rejectedIssues[i].receipientEmail = employee.email;
        rejectedIssues[i].receipientName = employee.name;
+       rejectedIssues[i].receipientId = employee.empid
        rejectedIssues[i].authLevel = issue.authLevel;
        rejectedIssues[i].did = issue.did;
        rejectedIssues[i].totalLevels = departmentsMapping[issue.did].levels;
@@ -372,6 +373,7 @@ app.route.post('/authorizer/statistic/rejectedIssues', async function(req){
        });
        rejected[i].receipientEmail = employee.email;
        rejected[i].receipientName = employee.name;
+       rejected[i].receipientId = employee.empid;
        rejected[i].authLevel = issue.authLevel;
        rejected[i].did = issue.did;
        rejected[i].totalLevels = departmentsMapping[issue.did].levels;
