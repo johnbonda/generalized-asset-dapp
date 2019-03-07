@@ -857,7 +857,8 @@ app.route.post("/registerEmployee", async function(req, cb){
 
             return {
                 message: "Registered",
-                isSuccess: true
+                isSuccess: true,
+                employee: creat
             }
 
         }

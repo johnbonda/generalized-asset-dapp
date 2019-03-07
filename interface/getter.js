@@ -417,6 +417,38 @@ app.route.post('/superuser/statistic/pendingIssues', async function(req){
             timestampp: -1
         }
     });
+
+    // Just mapping code of departments and issuers
+    var departments = await app.model.Department.findAll();
+    var departmentsMapping = {};
+    for(let i in departments){
+        departmentsMapping[departments[i].did] = {
+            name: departments[i].name,
+            levels: departments[i].levels
+        }
+    }
+
+    var issuers = await app.model.Issuer.findAll({
+        fields: ['iid', 'email']
+    })
+    var issuerMapping = {};
+    for(let i in issuers){
+        issuerMapping[issuers[i].iid] = issuers[i].email
+    }
+    // Just mapping code of departments and issuers
+
+    for(let i in pendingIssues){
+       var employee = await app.model.Employee.findOne({
+           condition: {
+               empid: pendingIssues[i].empid
+           }
+       });
+       pendingIssues[i].receipientEmail = employee.email;
+       pendingIssues[i].receipientName = employee.name;
+       pendingIssues[i].totalLevels = departmentsMapping[pendingIssues[i].did].levels;
+       pendingIssues[i].departmentName = departmentsMapping[pendingIssues[i].did].name;
+       pendingIssues[i].issuerEmail = issuerMapping[pendingIssues[i].iid];
+    }
     return {
         isSuccess: true,
         total: total,
@@ -437,6 +469,39 @@ app.route.post('/superuser/statistic/pendingAuthorization', async function(req){
             timestampp: -1
         }
     });
+
+    // Just mapping code of departments and issuers
+    var departments = await app.model.Department.findAll();
+    var departmentsMapping = {};
+    for(let i in departments){
+        departmentsMapping[departments[i].did] = {
+            name: departments[i].name,
+            levels: departments[i].levels
+        }
+    }
+
+    var issuers = await app.model.Issuer.findAll({
+        fields: ['iid', 'email']
+    })
+    var issuerMapping = {};
+    for(let i in issuers){
+        issuerMapping[issuers[i].iid] = issuers[i].email
+    }
+    // Just mapping code of departments and issuers
+
+    for(let i in pendingAuthorization){
+       var employee = await app.model.Employee.findOne({
+           condition: {
+               empid: pendingAuthorization[i].empid
+           }
+       });
+       pendingAuthorization[i].receipientEmail = employee.email;
+       pendingAuthorization[i].receipientName = employee.name;
+       pendingAuthorization[i].totalLevels = departmentsMapping[pendingAuthorization[i].did].levels;
+       pendingAuthorization[i].departmentName = departmentsMapping[pendingAuthorization[i].did].name;
+       pendingAuthorization[i].issuerEmail = issuerMapping[pendingAuthorization[i].iid];
+    }
+
     return {
         isSuccess: true,
         total: total,
@@ -447,17 +512,58 @@ app.route.post('/superuser/statistic/pendingAuthorization', async function(req){
 app.route.post('/superuser/statistic/rejectedIssues', async function(req){
 
     var total = await app.model.Rejected.count({});
-    var pendingAuthorization = await app.model.Rejected.findAll({
+    var rejected = await app.model.Rejected.findAll({
         limit: req.query.limit,
         offset: req.query.offset,
         sort: {
             timestampp: -1
         }
     });
+
+    // Just mapping code of departments and issuers
+    var departments = await app.model.Department.findAll();
+    var departmentsMapping = {};
+    for(let i in departments){
+        departmentsMapping[departments[i].did] = {
+            name: departments[i].name,
+            levels: departments[i].levels
+        }
+    }
+
+    var issuers = await app.model.Issuer.findAll({
+        fields: ['iid', 'email']
+    })
+    var issuerMapping = {};
+    for(let i in issuers){
+        issuerMapping[issuers[i].iid] = issuers[i].email
+    }
+    // Just mapping code of departments and issuers
+
+    for(let i in rejected){
+        var issue = await app.model.Issue.findOne({
+            condition: {
+                pid: rejected[i].pid
+            }
+        });
+       var employee = await app.model.Employee.findOne({
+           condition: {
+               empid: issue.empid
+           }
+       });
+       rejected[i].receipientEmail = employee.email;
+       rejected[i].receipientName = employee.name;
+       rejected[i].receipientId = employee.empid;
+       rejected[i].authLevel = issue.authLevel;
+       rejected[i].did = issue.did;
+       rejected[i].totalLevels = departmentsMapping[issue.did].levels;
+       rejected[i].departmentName = departmentsMapping[issue.did].name;
+       rejected[i].issuerEmail = issuerMapping[rejected[i].iid];
+    }
+
     return {
         isSuccess: true,
         total: total,
-        pendingAuthorization: pendingAuthorization
+        rejectedIssues: rejected
     }
 });
 

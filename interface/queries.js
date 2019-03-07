@@ -56,5 +56,21 @@ app.route.post('/query/employees', async function(req){
 
 app.route.post('/query/department/assets', async function(req){
     var parameters = [];
-    var queryString = 'select issue.* from issues '
+    var queryString = 'select issues.* from issues, css, authdepts where ';
+    
+})
+
+app.route.post('/query/authorizers/pendingSigns', async function(req) {
+    var checkAuth = await app.model.Authorizer.findOne({
+        condition:{
+            aid: req.query.aid,
+            deleted: '0'
+        }
+    });
+    if(!checkAuth) return {
+        message: "Invalid Authorizer",
+        isSuccess: false
+    }
+
+    
 })

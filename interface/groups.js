@@ -1271,7 +1271,7 @@ app.route.post('/department/assets', async function(req){
 
     var total = await app.model.Issue.count(condition);
     var issues = await app.model.Issue.findAll({
-        condition: condition,
+        condition: condition,  
         sort: {
             timestampp: -1
         },
