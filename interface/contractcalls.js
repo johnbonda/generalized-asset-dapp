@@ -92,5 +92,13 @@ app.route.post("/issueTransactionCall", async function(req, res){
 
     await blockWait();
     
-    return response;
+    if(!response.success) return {
+        isSuccess: false,
+        message: JSON.stringify(response)
+    }
+
+    return {
+        isSuccess: true,
+        transactionId: response.transactionId
+    }
 })
