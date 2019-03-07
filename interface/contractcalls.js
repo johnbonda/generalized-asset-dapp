@@ -57,7 +57,7 @@ app.route.post("/issueTransactionCall", async function(req, res){
     
     // if(issue.status !== "authorized") return "Payslip not authorized yet";
 
-    var array = [employee.walletAddress, "payslip", JSON.parse(issue.data)];
+    var array = [employee.walletAddress, "payslip", JSON.parse(issue.data), issue.pid];
 
     transactionParams.args = JSON.stringify(array);
     transactionParams.type = 1003;
@@ -68,6 +68,11 @@ app.route.post("/issueTransactionCall", async function(req, res){
     console.log(JSON.stringify(transactionParams));
 
     var response = await DappCall.call('PUT', "/unsigned", transactionParams, util.getDappID(),0);
+
+    if(!response.success) return {
+        isSuccess: false,
+        message: JSON.stringify(response)
+    }
     
     app.sdb.update('issue', {status: "issued"}, {pid: pid});  
     app.sdb.update('issue', {timestampp: new Date().getTime()}, {pid: pid});  
@@ -91,11 +96,6 @@ app.route.post("/issueTransactionCall", async function(req, res){
     });
 
     await blockWait();
-    
-    if(!response.success) return {
-        isSuccess: false,
-        message: JSON.stringify(response)
-    }
 
     return {
         isSuccess: true,

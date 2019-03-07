@@ -853,7 +853,7 @@ app.route.post("/registerEmployee", async function(req, cb){
                 atype: 'employee'
             });
 
-            await locker("/registerEmployee");
+            await blockWait();
 
             return {
                 message: "Registered",
