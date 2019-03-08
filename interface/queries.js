@@ -72,5 +72,43 @@ app.route.post('/query/authorizers/pendingSigns', async function(req) {
         isSuccess: false
     }
 
-    
+    var total = await new Promise((resolve)=>{
+        let sql = "select count(1) from issues where issues.status = 'pending' and issues.pid not in (select css.pid from css where css.aid = ?) and issues.did in (select did from authdepts where aid = ?) and issues.authLevel in (select level from authdepts where aid = ?);"
+        app.sideChainDatabase.get(sql, [req.query.aid, req.query.aid, req.query.aid], (err, row)=>{
+            if(err) resolve({
+                isSuccess: false,
+                message: JSON.stringify(err),
+                result: {}
+            });
+            resolve({
+                isSuccess: true,
+                result: row
+            });
+        });
+    });
+
+    if(!total.isSuccess) return total;
+
+    var result = await new Promise((resolve)=>{
+        let sql = "select issues.*, employees.email as receipientEmail, employees.name as receipientName, departments.levels as totalLevels, departments.name as departmentName, issuers.email as issuerEmail from issues join employees on issues.empid = employees.empid join departments on issues.did = departments.did join issuers on issues.iid = issuers.iid where issues.status = 'pending' and issues.pid not in (select css.pid from css where css.aid = ?) and issues.did in (select did from authdepts where aid = ?) and issues.authLevel in (select level from authdepts where aid = ?) limit ? offset ?;"
+        app.sideChainDatabase.all(sql, [req.query.aid, req.query.aid, req.query.aid, req.query.limit || 100, req.query.offset || 0], (err, row)=>{
+            if(err) resolve({
+                isSuccess: false,
+                message: JSON.stringify(err),
+                result: {}
+            });
+            resolve({
+                isSuccess: true,
+                result: row
+            });
+        });
+    });
+
+    if(!result.isSuccess) return result;
+
+    return {
+        isSuccess: true,
+        total: total.result['count(1)'],
+        result: result.result
+    }
 })

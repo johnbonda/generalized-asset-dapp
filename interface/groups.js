@@ -1297,21 +1297,50 @@ app.route.post('/getDepartment/authorizers', async function(req, cb){
         isSuccesS: false,
         message: "Department does not exist"
     }
-    var auths = await app.model.Authdept.findAll({
-        condition: {
-            did: department.did,
-            deleted: '0'
+    // var auths = await app.model.Authdept.findAll({
+    //     condition: {
+    //         did: department.did,
+    //         deleted: '0'
+    //     }
+    // });
+    // var authArray = new Array(department.levels);
+    // for(j in auths){
+    //     var authorizer = await app.model.Authorizer.findOne({
+    //         condition: {
+    //             aid: auths[j].aid
+    //         },
+    //         fields: ['aid', 'email']
+    //     });
+    //     authArray[Number(auths[j].level) - 1] = authorizer
+    // }
+    var authArray = [];
+    for(let i = 1; i <= department.levels; i++){
+        var authdept = await app.model.Authdept.findOne({
+            condition: {
+                did: department.did,
+                level: i
+            },
+            fields: ['aid', 'level']
+        });
+        if(!authdept){
+            authArray.push({
+                aid: "Null",
+                email: "Null",
+                level: i
+            });
+            continue;
         }
-    });
-    var authArray = new Array(department.levels);
-    for(j in auths){
         var authorizer = await app.model.Authorizer.findOne({
             condition: {
-                aid: auths[j].aid
+                aid: authdept.aid
             },
-            fields: ['aid', 'email']
+            fields: ['email']
         });
-        authArray[Number(auths[j].level) - 1] = authorizer
+        authArray.push({
+            aid: authdept.aid,
+            email: authorizer.email,
+            level: i
+        });
     }
     return {
         levels: authArray,
