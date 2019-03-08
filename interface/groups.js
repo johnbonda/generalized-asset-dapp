@@ -1285,3 +1285,36 @@ app.route.post('/department/assets', async function(req){
         issues: issues
     }
 })
+
+
+app.route.post('/getDepartment/authorizers', async function(req, cb){
+    var department = await app.model.Department.findOne({
+        condition: {
+            name: req.query.department
+        }
+    });
+    if(!department) return {
+        isSuccesS: false,
+        message: "Department does not exist"
+    }
+    var auths = await app.model.Authdept.findAll({
+        condition: {
+            did: department.did,
+            deleted: '0'
+        }
+    });
+    var authArray = new Array(department.levels);
+    for(j in auths){
+        var authorizer = await app.model.Authorizer.findOne({
+            condition: {
+                aid: auths[j].aid
+            },
+            fields: ['aid', 'email']
+        });
+        authArray[Number(auths[j].level) - 1] = authorizer
+    }
+    return {
+        levels: authArray,
+        isSuccess: true
+    }
+})
