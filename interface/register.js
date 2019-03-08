@@ -1167,7 +1167,6 @@ app.route.post('/registerUser/', async function(req, cb){
                     iid: app.autoID.increment('issuer_max_iid'),
                     publickey: "-",
                     email: email,
-                    name: name,
                     timestampp: timestampp,
                     deleted: "0"
                 });
@@ -1189,7 +1188,6 @@ app.route.post('/registerUser/', async function(req, cb){
                     aid: app.autoID.increment('authorizer_max_aid'),
                     publickey: "-",
                     email: email,
-                    name: name,
                     timestampp: timestampp,
                     deleted: "0"
                 });
