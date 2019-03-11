@@ -1324,8 +1324,8 @@ app.route.post('/getDepartment/authorizers', async function(req, cb){
         });
         if(!authdept){
             authArray.push({
-                aid: "Null",
-                email: "Null",
+                aid: "null",
+                email: "null",
                 level: i
             });
             continue;
