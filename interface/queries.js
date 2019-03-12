@@ -14,7 +14,6 @@ var blockWait = require("../utils/blockwait");
 
 
 
-
 app.route.post('/query/employees', async function(req){
     logger.info("Entered /query/employees API");
 
@@ -236,6 +235,32 @@ app.route.post('/query/superuser/statistic/pendingAuthorization', async function
     return {
         isSuccess: true,
         total: total.result.total,
+        result: result.result
+    }
+})
+
+app.route.post('/query/departments/topIssued', async function(req){
+    
+    var timespan = util.getMilliSecondLimits(req.query.month || new Date().getMonth() + 1, req.query.year || new Date().getFullYear());
+    var result = await new Promise((resolve)=>{
+        let sql = "select departments.name as department, count(issues.pid) as count from departments left join issues on issues.did = departments.did and issues.status = 'issued' and timestampp between ? and ? group by departments.name order by 2 desc limit ?;"
+        app.sideChainDatabase.all(sql, [timespan.first, timespan.last, req.query.limit || 5], (err, row)=>{
+            if(err) resolve({
+                isSuccess: false,
+                message: JSON.stringify(err),
+                result: {}
+            });
+            resolve({
+                isSuccess: true,
+                result: row
+            });
+        });
+    });
+
+    if(!result.isSuccess) return result;
+
+    return {
+        isSuccess: true,
         result: result.result
     }
 })
