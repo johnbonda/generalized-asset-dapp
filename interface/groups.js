@@ -1094,11 +1094,15 @@ app.route.post('/superuser/statistics', async function(req, cb){
     var payslipsCount = await app.model.Issue.count({
         status: 'issued'
     });
+    var pendingCount = await app.model.Issue.count({
+        status: 'pending'
+    });
     return {
         employeesCount: employeesCount,
         issuersCount: issuersCount,
         authorizersCount: authorizersCount,
         payslipsCount: payslipsCount,
+        pendingCount: pendingCount,
         isSuccess: true
     }
 })
