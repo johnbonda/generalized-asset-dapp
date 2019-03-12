@@ -264,3 +264,87 @@ app.route.post('/query/departments/topIssued', async function(req){
         result: result.result
     }
 })
+
+
+app.route.post('/query/department/assets', async function(req){
+    var inputs = [];
+    var conditionString = " from issues where";
+    var departmentCheck = await app.model.Department.exists({
+        did: req.query.did
+    });
+    if(!departmentCheck) return {
+        isSuccess: false,
+        message: "Invalid Department"
+    }
+    conditionString += " issues.did = ?";
+    inputs.push(req.query.did);
+    if(req.query.status){
+        conditionString += " and issues.status = ?";
+        inputs.push(req.query.status);
+    }
+    if(req.query.month || req.query.year){
+        var limits = {};
+        if(req.query.month && req.query.year){
+            limits = util.getMilliSecondLimits(req.query.month, req.query.year);
+        }
+        else if(req.query.month){
+            limits = util.getMilliSecondLimits(req.query.month, new Date().getFullYear());
+        }
+        else{
+            limits.first = util.getMilliSecondLimits(1, req.query.year).first;
+            limits.last = util.getMilliSecondLimits(12, req.query.year).last;                                              
+        }
+        conditionString += " and issues.timestampp between ? and ?";
+        inputs.push(limits.first, limits.last);
+    }
+    if(req.query.iid){
+        conditionString += " and issues.iid = ?";
+        inputs.push(req.query.iid);
+    }
+    if(req.query.aid){
+        conditionString += " and (issues.pid in (select css.pid from css where css.aid = ?) or issues.pid in (select issues.pid from issues join authdepts on authdepts.level = issues.authLevel and authdepts.did = issues.did and authdepts.aid = ?))";
+        inputs.push(req.query.aid, req.query.aid);
+    }
+
+
+    var total = await new Promise((resolve)=>{
+        let sql = "select count(1) as total" + conditionString + ";";
+        app.sideChainDatabase.get(sql, inputs, (err, row)=>{
+            if(err) resolve({
+                isSuccess: false,
+                message: JSON.stringify(err),
+                result: {}
+            });
+            resolve({
+                isSuccess: true,
+                result: row
+            });
+        });
+    });
+
+    if(!total.isSuccess) return total;
+
+    var result = await new Promise((resolve)=>{
+        let sql = "select issues.*" + conditionString +" limit ? offset ?;"
+        inputs.push(req.query.limit || 100, req.query.offset || 0);
+        app.sideChainDatabase.all(sql, inputs, (err, row)=>{
+            if(err) resolve({
+                isSuccess: false,
+                message: JSON.stringify(err),
+                result: {}
+            });
+            resolve({
+                isSuccess: true,
+                result: row
+            });
+        });
+    });
+
+    if(!result.isSuccess) return result;
+
+    return {
+        isSuccess: true,
+        total: total.result.total,
+        result: result.result
+    }
+})

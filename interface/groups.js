@@ -1272,7 +1272,7 @@ app.route.post('/department/assets', async function(req){
     if(req.query.iid){
         condition.iid = req.query.iid
     }
-
+    
     var total = await app.model.Issue.count(condition);
     var issues = await app.model.Issue.findAll({
         condition: condition,  
