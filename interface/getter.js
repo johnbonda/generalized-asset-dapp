@@ -1,4 +1,4 @@
-
+var util = require('../utils/util');
 
 app.route.post('/issuer/statistic/counts', async function(req){
     var pendingIssuesCount = await app.model.Issue.count({
@@ -581,3 +581,63 @@ app.route.post('/receipient/email/exists', async function(req){
         data: receipient
     }
 })
+
+app.route.post("/statistics/monthlyCounts", async function(req){
+    if(!req.query.role) return {
+        isSuccess: false,
+        message: "Please specify role: issuer/authorizer"
+    }
+    var year = req.query.year || new Date().getFullYear();
+    var array = [];
+    if(req.query.role === 'issuer'){
+        var issuer = await app.model.Issuer.findOne({
+            condition: {
+                email: req.query.email,
+                deleted: '0'
+            }
+        });
+        if(!issuer) return {
+            isSuccess: false,
+            message: "Invalid issuer"
+        }
+
+        for(let i = 1; i <=12; i++){
+            let limits = util.getMilliSecondLimits(i, year);
+            let count = await app.model.Issue.count({
+                iid: issuer.iid,
+                status: 'issued',
+                timestampp: {
+                    $between: [limits.first, limits.last]
+                }
+            });
+            array.push(count);
+        }
+    }
+    else{
+        var authorizer = await app.model.Authorizer.findOne({
+            condition: {
+                email: req.query.email,
+                deleted: '0'
+            }
+        });
+        if(!authorizer) return {
+            isSuccess: false,
+            message: "Invalid Authorizer" 
+        }
+
+        for(let i = 1; i <= 12; i++){
+            let limits = util.getMilliSecondLimits(i, year);
+            let count = await app.model.Cs.count({
+                aid: authorizer.aid,
+                timestampp: {
+                    $between: [limits.first, limits.last]
+                }
+            });
+            array.push(count);
+        }
+    }
+    return {
+        monthsCount : array,
+        isSuccess: true
+    }
+});
