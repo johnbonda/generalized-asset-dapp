@@ -1351,3 +1351,18 @@ app.route.post('/getDepartment/authorizers', async function(req, cb){
         isSuccess: true
     }
 })
+
+app.route.post('/issues/rejected/reasons', async function(req, cb){
+    var reasons = await app.model.Rejected.findAll({
+        fields: ['reason']
+    });
+    var reasonSet = new Set();
+    for(i in reasons){
+        reasonSet.add(reasons[i].reason)
+    }
+    
+    return {
+        reasons: Array.from(reasonSet),
+        isSuccess: true
+    }
+})
