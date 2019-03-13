@@ -653,6 +653,7 @@ app.route.post('/getPayedPayslip', async function(req, cb){
         payslip: JSON.parse(issue.data),
         payment: true,
         issue: issue,
+        employee: employee,
         issuer: issuer,
         signs: signs,
         isSuccess: true
