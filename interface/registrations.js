@@ -444,7 +444,8 @@ app.route.post('/payslip/statistic', async function(req, cb){
         return {
             rejectedBy: authorizer,
             issuedBy: issuer,
-            reason: rejected.reason
+            reason: rejected.reason,
+            isSuccess: true
         }
     }
     
@@ -482,6 +483,81 @@ app.route.post('/payslip/statistic', async function(req, cb){
         result.totalLevels = department.levels;
     }
 
+    if(issue.status === 'issued'){
+        var transaction = await app.model.Transaction.findOne({
+            condition: {
+                id: issue.transactionId
+            }
+        });
+        result.transaction = transaction;
+    }
+
+    return result;
+})
+
+app.route.post('/payslip/statistic2', async function(req, cb){
+    var issue = await app.model.Issue.findOne({
+        condition: {
+            pid: req.query.pid,
+        }
+    });
+    if(!issue) return {
+        message: "Invalid issue",
+        isSuccess: false
+    }
+    var issuer = await app.model.Issuer.findOne({
+        condition: {
+            iid: issue.iid
+        }
+    });
+
+    var authSigned = await new Promise((resolve)=>{
+        let sql = "select authdepts.aid as aid, authdepts.level as level, authorizers.email as email, count(css.sign) as signed from authdepts join authorizers on authdepts.aid = authorizers.aid join issues on issues.pid = ? and issues.did = authdepts.did left join css on authdepts.aid = css.aid and css.pid = issues.pid where authdepts.deleted = '0' group by authdepts.aid;"
+        app.sideChainDatabase.all(sql, [issue.pid], (err, row)=>{
+            if(err) resolve({
+                isSuccess: false,
+                message: JSON.stringify(err),
+                result: {}
+            });
+            resolve({
+                isSuccess: true,
+                result: row
+            });
+        });
+    });
+
+    if(!authSigned.isSuccess) return result;
+
+    var department = await app.model.Department.findOne({
+        condition: {
+            did: issue.did
+        }
+    });
+
+    var result = {
+        issue: issue,
+        issuer: issuer,
+        signatures: authSigned.result,
+        totalLevels: department.levels,
+        isSuccess: true
+    };
+
+    if(issue.status === 'rejected'){
+        var rejected = await app.model.Rejected.findOne({
+            condition: {
+                pid: req.query.pid
+            }
+        });
+        var authorizer = await app.model.Authorizer.findOne({
+            condition: {
+            aid: rejected.aid
+            }
+        });
+        result.rejectedBy = authorizer;
+        result.reason = rejected.reason;
+        return result;
+    }
+    
     if(issue.status === 'issued'){
         var transaction = await app.model.Transaction.findOne({
             condition: {
