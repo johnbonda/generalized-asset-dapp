@@ -131,7 +131,7 @@ app.route.post('/query/superuser/statistic/pendingIssues', async function(req){
     if(!total.isSuccess) return total;
 
     var result = await new Promise((resolve)=>{
-        let sql = "select issuers.email as issuerEmail, departments.name as department, count(issues.pid) as count from issuers join issudepts on issuers.iid = issudepts.iid join departments on issudepts.did = departments.did left join issues on issues.iid = issuers.iid and issues.status = 'authorized' where issuers.deleted = '0' and issudepts.deleted = '0' group by 1,2 order by 3 desc limit ? offset ?;"
+        let sql = "select issuers.email as issuerEmail, departments.name as department, count(issues.pid) as count from issuers join issudepts on issuers.iid = issudepts.iid join departments on issudepts.did = departments.did left join issues on issues.iid = issuers.iid and issues.status = 'authorized' and issues.did = departments.did where issuers.deleted = '0' and issudepts.deleted = '0' group by 1,2 order by 3 desc limit ? offset ?;"
         app.sideChainDatabase.all(sql, [req.query.limit || 100, req.query.offset || 0], (err, row)=>{
             if(err) resolve({
                 isSuccess: false,
