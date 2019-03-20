@@ -633,7 +633,7 @@ app.route.post('/searchEmployee', async function(req, cb){
         var total = await app.model.Employee.count(condition);
         var result = await app.model.Employee.findAll({
             condition: condition,
-            fields: ['empid', 'name', 'designation'],
+            fields: ['empid', 'name'],
             limit: req.query.limit,
             offset: req.query.offset
         });
