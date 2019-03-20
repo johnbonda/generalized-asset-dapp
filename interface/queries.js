@@ -492,3 +492,186 @@ app.route.post('/query/superuser/statistic/rejectedIssues2', async function(req)
         result: result.result
     }
 })
+
+app.route.post('/query/issuer/statistic/pendingIssues', async function(req){
+    var checkIssuer = await app.model.Issuer.findOne({
+        condition:{
+            iid: req.query.iid,
+            deleted: '0'
+        }
+    });
+    if(!checkIssuer) return {
+        message: "Invalid Issuer",
+        isSuccess: false
+    }
+    var inputs = [req.query.iid];
+
+    var departmentCondition = "";
+    if(req.query.department){
+        departmentCondition = " and departments.name = ?";
+        inputs.push(req.query.department);
+    }
+
+    var queryString = ` select issues.pid as pid, departments.name as departmentName, employees.name as receipientName, issues.authLevel as authLevel, departments.levels as totalLevels, issues.timestampp as timestamp, employees.email as receipientEmail from issues join departments on issues.did = departments.did join employees on issues.empid = employees.empid where issues.status = 'authorized' and issues.iid = ?${departmentCondition}`;
+
+    var total = await new Promise((resolve)=>{
+        let sql = `select count(*) as total from (${queryString});`
+        app.sideChainDatabase.get(sql, inputs, (err, row)=>{
+            if(err) resolve({
+                isSuccess: false,
+                message: JSON.stringify(err),
+                result: {}
+            });
+            resolve({
+                isSuccess: true,
+                result: row
+            });
+        });
+    });
+
+    inputs.push(req.query.limit || 100, req.query.offset || 0);
+    var result = await new Promise((resolve)=>{
+        let sql = `${queryString}  limit ? offset ?;`;
+        app.sideChainDatabase.all(sql, inputs, (err, row)=>{
+            if(err) resolve({
+                isSuccess: false,
+                message: JSON.stringify(err),
+                result: {}
+            });
+            resolve({
+                isSuccess: true,
+                result: row
+            });
+        });
+    });
+
+    if(!result.isSuccess) return result;
+
+    return {
+        isSuccess: true,
+        total: total.result.total,
+        result: result.result
+    }
+})
+
+app.route.post('/query/issuer/statistic/issuedIssues', async function(req){
+    var checkIssuer = await app.model.Issuer.findOne({
+        condition:{
+            iid: req.query.iid,
+            deleted: '0'
+        }
+    });
+    if(!checkIssuer) return {
+        message: "Invalid Issuer",
+        isSuccess: false
+    }
+    var inputs = [req.query.iid];
+
+    var departmentCondition = "";
+    if(req.query.department){
+        departmentCondition = " and departments.name = ?";
+        inputs.push(req.query.department);
+    }
+
+    var queryString = ` select issues.pid as pid, departments.name as departmentName, employees.name as receipientName, issues.authLevel as authLevel, departments.levels as totalLevels, issues.timestampp as timestamp, employees.email as receipientEmail, issues.transactionId as transactionId from issues join departments on issues.did = departments.did join employees on issues.empid = employees.empid where issues.status = 'issued' and issues.iid = ?${departmentCondition}`;
+
+    var total = await new Promise((resolve)=>{
+        let sql = `select count(*) as total from (${queryString});`
+        app.sideChainDatabase.get(sql, inputs, (err, row)=>{
+            if(err) resolve({
+                isSuccess: false,
+                message: JSON.stringify(err),
+                result: {}
+            });
+            resolve({
+                isSuccess: true,
+                result: row
+            });
+        });
+    });
+
+    inputs.push(req.query.limit || 100, req.query.offset || 0);
+    var result = await new Promise((resolve)=>{
+        let sql = `${queryString}  limit ? offset ?;`;
+        app.sideChainDatabase.all(sql, inputs, (err, row)=>{
+            if(err) resolve({
+                isSuccess: false,
+                message: JSON.stringify(err),
+                result: {}
+            });
+            resolve({
+                isSuccess: true,
+                result: row
+            });
+        });
+    });
+
+    if(!result.isSuccess) return result;
+
+    return {
+        isSuccess: true,
+        total: total.result.total,
+        result: result.result
+    }
+})
+
+app.route.post('/query/issuer/statistic/rejectedIssues', async function(req){
+    var checkIssuer = await app.model.Issuer.findOne({
+        condition:{
+            iid: req.query.iid,
+            deleted: '0'
+        }
+    });
+    if(!checkIssuer) return {
+        message: "Invalid Issuer",
+        isSuccess: false
+    }
+    var inputs = [req.query.iid];
+
+    var departmentCondition = "";
+    if(req.query.department){
+        departmentCondition = " and departments.name = ?";
+        inputs.push(req.query.department);
+    }
+
+    var queryString = ` select issues.pid as pid, departments.name as departmentName, employees.name as receipientName, issues.authLevel as authLevel, departments.levels as totalLevels, rejecteds.timestampp as timestamp, employees.email as receipientEmail from issues join departments on issues.did = departments.did join employees on issues.empid = employees.empid join rejecteds on rejecteds.pid = issues.pid where issues.status = 'rejected' and issues.iid = ?${departmentCondition}`;
+
+    var total = await new Promise((resolve)=>{
+        let sql = `select count(*) as total from (${queryString});`
+        app.sideChainDatabase.get(sql, inputs, (err, row)=>{
+            if(err) resolve({
+                isSuccess: false,
+                message: JSON.stringify(err),
+                result: {}
+            });
+            resolve({
+                isSuccess: true,
+                result: row
+            });
+        });
+    });
+
+    inputs.push(req.query.limit || 100, req.query.offset || 0);
+    var result = await new Promise((resolve)=>{
+        let sql = `${queryString}  limit ? offset ?;`;
+        app.sideChainDatabase.all(sql, inputs, (err, row)=>{
+            if(err) resolve({
+                isSuccess: false,
+                message: JSON.stringify(err),
+                result: {}
+            });
+            resolve({
+                isSuccess: true,
+                result: row
+            });
+        });
+    });
+
+    if(!result.isSuccess) return result;
+
+    return {
+        isSuccess: true,
+        total: total.result.total,
+        result: result.result
+    }
+})
