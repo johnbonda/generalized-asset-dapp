@@ -67,7 +67,13 @@ app.route.post('/query/authorizers/pendingSigns', async function(req) {
 
     var inputs = [req.query.aid];
 
-    var queryString = `select issues.*, employees.email as receipientEmail, employees.name as receipientName, departments.levels as totalLevels, departments.name as departmentName, issuers.email as issuerEmail from issues join employees on issues.empid = employees.empid join departments on issues.did = departments.did join issuers on issues.iid = issuers.iid join authdepts on authdepts.aid = ? and authdepts.level = issues.authLevel and authdepts.did = issues.did where issues.status = 'pending'`;
+    var departmentCondition = "";
+    if(req.query.department){
+        departmentCondition = " and departments.name = ?";
+        inputs.push(req.query.department);
+    }
+
+    var queryString = `select issues.*, employees.email as receipientEmail, employees.name as receipientName, departments.levels as totalLevels, departments.name as departmentName, issuers.email as issuerEmail from issues join employees on issues.empid = employees.empid join departments on issues.did = departments.did join issuers on issues.iid = issuers.iid join authdepts on authdepts.aid = ? and authdepts.level = issues.authLevel and authdepts.did = issues.did where issues.status = 'pending'${departmentCondition}`;
 
     var total = await new Promise((resolve)=>{
         let sql = `select count(*) as total from (${queryString});`
@@ -635,6 +641,130 @@ app.route.post('/query/issuer/statistic/rejectedIssues', async function(req){
     }
 
     var queryString = ` select issues.pid as pid, departments.name as departmentName, employees.name as receipientName, issues.authLevel as authLevel, departments.levels as totalLevels, rejecteds.timestampp as timestamp, employees.email as receipientEmail from issues join departments on issues.did = departments.did join employees on issues.empid = employees.empid join rejecteds on rejecteds.pid = issues.pid where issues.status = 'rejected' and issues.iid = ?${departmentCondition}`;
+
+    var total = await new Promise((resolve)=>{
+        let sql = `select count(*) as total from (${queryString});`
+        app.sideChainDatabase.get(sql, inputs, (err, row)=>{
+            if(err) resolve({
+                isSuccess: false,
+                message: JSON.stringify(err),
+                result: {}
+            });
+            resolve({
+                isSuccess: true,
+                result: row
+            });
+        });
+    });
+
+    inputs.push(req.query.limit || 100, req.query.offset || 0);
+    var result = await new Promise((resolve)=>{
+        let sql = `${queryString}  limit ? offset ?;`;
+        app.sideChainDatabase.all(sql, inputs, (err, row)=>{
+            if(err) resolve({
+                isSuccess: false,
+                message: JSON.stringify(err),
+                result: {}
+            });
+            resolve({
+                isSuccess: true,
+                result: row
+            });
+        });
+    });
+
+    if(!result.isSuccess) return result;
+
+    return {
+        isSuccess: true,
+        total: total.result.total,
+        result: result.result
+    }
+})
+
+app.route.post('/query/authorizer/statistic/signedIssues', async function(req){
+    var checkAuth = await app.model.Authorizer.findOne({
+        condition:{
+            aid: req.query.aid,
+            deleted: '0'
+        }
+    });
+    if(!checkAuth) return {
+        message: "Invalid Authorizer",
+        isSuccess: false
+    }
+
+    var inputs = [req.query.aid];
+
+    var departmentCondition = "";
+    if(req.query.department){
+        departmentCondition = " where departments.name = ?";
+        inputs.push(req.query.department);
+    }
+
+    var queryString = ` select issues.pid as pid, departments.name as departmentName, employees.name as receipientName, issues.authLevel as authLevel, departments.levels as totalLevels, css.timestampp as timestamp, employees.email as receipientEmail, issuers.email as issuerEmail, issuers.iid as iid from issues join departments on issues.did = departments.did join employees on issues.empid = employees.empid join issuers on issues.iid = issuers.iid join css on css.pid = issues.pid and css.aid = ?${departmentCondition}`;
+
+    var total = await new Promise((resolve)=>{
+        let sql = `select count(*) as total from (${queryString});`
+        app.sideChainDatabase.get(sql, inputs, (err, row)=>{
+            if(err) resolve({
+                isSuccess: false,
+                message: JSON.stringify(err),
+                result: {}
+            });
+            resolve({
+                isSuccess: true,
+                result: row
+            });
+        });
+    });
+
+    inputs.push(req.query.limit || 100, req.query.offset || 0);
+    var result = await new Promise((resolve)=>{
+        let sql = `${queryString}  limit ? offset ?;`;
+        app.sideChainDatabase.all(sql, inputs, (err, row)=>{
+            if(err) resolve({
+                isSuccess: false,
+                message: JSON.stringify(err),
+                result: {}
+            });
+            resolve({
+                isSuccess: true,
+                result: row
+            });
+        });
+    });
+
+    if(!result.isSuccess) return result;
+
+    return {
+        isSuccess: true,
+        total: total.result.total,
+        result: result.result
+    }
+})
+
+app.route.post('/query/authorizer/statistic/rejectedIssues', async function(req){
+    var checkAuth = await app.model.Authorizer.findOne({
+        condition:{
+            aid: req.query.aid,
+            deleted: '0'
+        }
+    });
+    if(!checkAuth) return {
+        message: "Invalid Authorizer",
+        isSuccess: false
+    }
+
+    var inputs = [req.query.aid];
+
+    var departmentCondition = "";
+    if(req.query.department){
+        departmentCondition = " where departments.name = ?";
+        inputs.push(req.query.department);
+    }
+
+    var queryString = ` select issues.pid as pid, DEPARTMENTS.name as departmentName, employees.name as receipientName, issues.authLevel as authLevel, departments.levels as totalLevels, rejecteds.timestampp as timestamp, employees.email as receipientEmail, issuers.email as issuerEmail, issuers.iid as iid from issues join departments on issues.did = departments.did join employees on issues.empid = employees.empid join issuers on issues.iid = issuers.iid join rejecteds on rejecteds.pid = issues.pid and rejecteds.aid = ?${departmentCondition}`;
 
     var total = await new Promise((resolve)=>{
         let sql = `select count(*) as total from (${queryString});`
