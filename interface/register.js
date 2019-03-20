@@ -1414,7 +1414,7 @@ app.route.post('/generatePayslipLink', async function(req, cb){
     })
 
     var mailBody = {
-        mailType: "sendPayslipLink",
+        mailType: "sendAssetLink",
         mailOptions: {
             to: [req.query.email],
             name: employee.name,

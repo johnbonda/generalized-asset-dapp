@@ -744,3 +744,8 @@ app.route.post('/getPayedPayslip', async function(req, cb){
     }
 })
 
+app.route.get('/isLaunched', async function(req){
+    return {
+        isSuccess: true
+    }
+});

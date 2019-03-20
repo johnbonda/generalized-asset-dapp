@@ -53,12 +53,6 @@ app.route.post('/query/employees', async function(req){
     }
 });
 
-app.route.post('/query/department/assets', async function(req){
-    var parameters = [];
-    var queryString = 'select issues.* from issues, css, authdepts where ';
-    
-})
-
 app.route.post('/query/authorizers/pendingSigns', async function(req) {
     var checkAuth = await app.model.Authorizer.findOne({
         condition:{
@@ -71,9 +65,13 @@ app.route.post('/query/authorizers/pendingSigns', async function(req) {
         isSuccess: false
     }
 
+    var inputs = [req.query.aid];
+
+    var queryString = `select issues.*, employees.email as receipientEmail, employees.name as receipientName, departments.levels as totalLevels, departments.name as departmentName, issuers.email as issuerEmail from issues join employees on issues.empid = employees.empid join departments on issues.did = departments.did join issuers on issues.iid = issuers.iid join authdepts on authdepts.aid = ? and authdepts.level = issues.authLevel and authdepts.did = issues.did where issues.status = 'pending'`;
+
     var total = await new Promise((resolve)=>{
-        let sql = "select count(1) from issues where issues.status = 'pending' and issues.pid not in (select css.pid from css where css.aid = ?) and issues.did in (select did from authdepts where aid = ?) and issues.authLevel in (select level from authdepts where aid = ?);"
-        app.sideChainDatabase.get(sql, [req.query.aid, req.query.aid, req.query.aid], (err, row)=>{
+        let sql = `select count(*) as total from (${queryString});`
+        app.sideChainDatabase.get(sql, inputs, (err, row)=>{
             if(err) resolve({
                 isSuccess: false,
                 message: JSON.stringify(err),
@@ -86,11 +84,10 @@ app.route.post('/query/authorizers/pendingSigns', async function(req) {
         });
     });
 
-    if(!total.isSuccess) return total;
-
+    inputs.push(req.query.limit || 100, req.query.offset || 0);
     var result = await new Promise((resolve)=>{
-        let sql = "select issues.*, employees.email as receipientEmail, employees.name as receipientName, departments.levels as totalLevels, departments.name as departmentName, issuers.email as issuerEmail from issues join employees on issues.empid = employees.empid join departments on issues.did = departments.did join issuers on issues.iid = issuers.iid where issues.status = 'pending' and issues.pid not in (select css.pid from css where css.aid = ?) and issues.did in (select did from authdepts where aid = ?) and issues.authLevel in (select level from authdepts where aid = ?) limit ? offset ?;"
-        app.sideChainDatabase.all(sql, [req.query.aid, req.query.aid, req.query.aid, req.query.limit || 100, req.query.offset || 0], (err, row)=>{
+        let sql = `${queryString}  limit ? offset ?;`;
+        app.sideChainDatabase.all(sql, inputs, (err, row)=>{
             if(err) resolve({
                 isSuccess: false,
                 message: JSON.stringify(err),
@@ -107,7 +104,7 @@ app.route.post('/query/authorizers/pendingSigns', async function(req) {
 
     return {
         isSuccess: true,
-        total: total.result['count(1)'],
+        total: total.result.total,
         result: result.result
     }
 })
@@ -327,6 +324,153 @@ app.route.post('/query/department/assets', async function(req){
     var result = await new Promise((resolve)=>{
         let sql = "select issues.*" + conditionString +" limit ? offset ?;"
         inputs.push(req.query.limit || 100, req.query.offset || 0);
+        app.sideChainDatabase.all(sql, inputs, (err, row)=>{
+            if(err) resolve({
+                isSuccess: false,
+                message: JSON.stringify(err),
+                result: {}
+            });
+            resolve({
+                isSuccess: true,
+                result: row
+            });
+        });
+    });
+
+    if(!result.isSuccess) return result;
+
+    return {
+        isSuccess: true,
+        total: total.result.total,
+        result: result.result
+    }
+});
+
+app.route.post('/query/superuser/statistic/pendingIssues2', async function(req){
+    var inputs = [];
+    var departmentCondition = "";
+    if(req.query.department){
+        departmentCondition = " and departments.name = ?";
+        inputs.push(req.query.department);
+    }
+    var queryString = `select issuers.email as issuerEmail, departments.name as department, count(issues.pid) as count from issuers join issudepts on issuers.iid = issudepts.iid join departments on issudepts.did = departments.did join issues on issues.iid = issuers.iid and issues.status = 'authorized' and issues.did = departments.did where issuers.deleted = '0' and issudepts.deleted = '0'${departmentCondition} group by 1,2`;
+
+    var total = await new Promise((resolve)=>{
+        let sql = `select count(*) as total from (${queryString});`
+        app.sideChainDatabase.get(sql, inputs, (err, row)=>{
+            if(err) resolve({
+                isSuccess: false,
+                message: JSON.stringify(err),
+                result: {}
+            });
+            resolve({
+                isSuccess: true,
+                result: row
+            });
+        });
+    });
+
+    inputs.push(req.query.limit || 100, req.query.offset || 0);
+    var result = await new Promise((resolve)=>{
+        let sql = `${queryString} order by 3 desc limit ? offset ?;`;
+        app.sideChainDatabase.all(sql, inputs, (err, row)=>{
+            if(err) resolve({
+                isSuccess: false,
+                message: JSON.stringify(err),
+                result: {}
+            });
+            resolve({
+                isSuccess: true,
+                result: row
+            });
+        });
+    });
+
+    if(!result.isSuccess) return result;
+
+    return {
+        isSuccess: true,
+        total: total.result.total,
+        result: result.result
+    }
+})
+
+app.route.post('/query/superuser/statistic/pendingAuthorization2', async function(req){
+    var inputs = [];
+    var departmentCondition = "";
+    if(req.query.department){
+        departmentCondition = " and departments.name = ?";
+        inputs.push(req.query.department);
+    }
+    var queryString = `select authorizers.email as authorizerEmail, departments.name as department, count(issues.pid) as count from authdepts join authorizers on authdepts.aid = authorizers.aid join departments on authdepts.did = departments.did join issues on issues.authLevel = authdepts.level and authdepts.did = issues.did and issues.status = 'pending' and issues.pid where authdepts.deleted = '0'${departmentCondition} group by authorizers.email, departments.name`;
+
+    var total = await new Promise((resolve)=>{
+        let sql = `select count(*) as total from (${queryString});`
+        app.sideChainDatabase.get(sql, inputs, (err, row)=>{
+            if(err) resolve({
+                isSuccess: false,
+                message: JSON.stringify(err),
+                result: {}
+            });
+            resolve({
+                isSuccess: true,
+                result: row
+            });
+        });
+    });
+
+    inputs.push(req.query.limit || 100, req.query.offset || 0);
+    var result = await new Promise((resolve)=>{
+        let sql = `${queryString} order by 3 desc limit ? offset ?;`;
+        app.sideChainDatabase.all(sql, inputs, (err, row)=>{
+            if(err) resolve({
+                isSuccess: false,
+                message: JSON.stringify(err),
+                result: {}
+            });
+            resolve({
+                isSuccess: true,
+                result: row
+            });
+        });
+    });
+
+    if(!result.isSuccess) return result;
+
+    return {
+        isSuccess: true,
+        total: total.result.total,
+        result: result.result
+    }
+})
+
+app.route.post('/query/superuser/statistic/rejectedIssues2', async function(req){
+    var inputs = [];
+    var departmentCondition = "";
+    if(req.query.department){
+        departmentCondition = " and departments.name = ?";
+        inputs.push(req.query.department);
+    }
+    var queryString = `select authorizers.email as authorizerEmail, departments.name as department, count(rejecteds.pid) as count from authdepts join authorizers on authdepts.aid = authorizers.aid join departments on authdepts.did = departments.did join issues on issues.did = authdepts.did join rejecteds on authdepts.aid = rejecteds.aid and rejecteds.pid = issues.pid where authdepts.deleted = '0'${departmentCondition} group by authorizers.email, departments.name`;
+
+    var total = await new Promise((resolve)=>{
+        let sql = `select count(*) as total from (${queryString});`
+        app.sideChainDatabase.get(sql, inputs, (err, row)=>{
+            if(err) resolve({
+                isSuccess: false,
+                message: JSON.stringify(err),
+                result: {}
+            });
+            resolve({
+                isSuccess: true,
+                result: row
+            });
+        });
+    });
+
+    inputs.push(req.query.limit || 100, req.query.offset || 0);
+    var result = await new Promise((resolve)=>{
+        let sql = `${queryString} order by 3 desc limit ? offset ?;`;
         app.sideChainDatabase.all(sql, inputs, (err, row)=>{
             if(err) resolve({
                 isSuccess: false,

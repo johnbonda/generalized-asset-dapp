@@ -78,7 +78,7 @@ app.route.post("/issueTransactionCall", async function(req, res){
     app.sdb.update('issue', {timestampp: new Date().getTime()}, {pid: pid});  
 
     var mailBody = {
-        mailType: "sendIssued",
+        mailType: "sendAssetIssued",
         mailOptions: {
             to: [employee.email],
             payslip: JSON.parse(issue.data)
