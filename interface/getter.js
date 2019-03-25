@@ -641,3 +641,21 @@ app.route.post("/statistics/monthlyCounts", async function(req){
         isSuccess: true
     }
 });
+
+app.route.get('/totals1', async function(req){
+    var issuedCount = await app.model.Issue.count({
+        status: 'issued'
+    });
+    var pendingCount = await app.model.Issue.count({
+        status: 'pending'
+    });
+    var recipientsCount = await app.model.Employee.count({
+        deleted: '0'
+    });
+    return {
+        isSuccess: true,
+        issuedCount: issuedCount,
+        pendingCount: pendingCount,
+        recipientsCount: recipientsCount
+    }
+});
