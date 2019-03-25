@@ -566,6 +566,24 @@ app.route.post('/authorizers/remove', async function(req, cb){
         });
     }
 
+    var departments = await app.model.Authdept.findAll({
+        condition: {
+            aid: check.aid,
+            deleted: '0'
+        },
+        fields: ['did']
+    });
+
+    for(i in departments){
+        let levels = await app.model.Department.findOne({
+            condition: {
+                did: departments[i].did
+            },
+            fields: ['levels']
+        });
+        app.sdb.update('department', {levels: levels.levels - 1}, {did: departments[i].did});
+    }
+
     app.sdb.update('authdept', {deleted: '1'}, {aid: check.aid});
     app.sdb.update('authorizer', {deleted: '1'}, {aid: check.aid});
 
