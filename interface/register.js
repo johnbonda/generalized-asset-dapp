@@ -427,141 +427,212 @@ app.route.post('/payslip/getPayslip', async function(req, cb){
 app.route.post('/authorizer/authorize',async function(req,cb){
     logger.info("Entered /authorizer/authorize API");
     await locker("Authorization@"+req.query.pid);
+    var result = await authorizerSign(req);
+    if(!result.isSuccess) return result;
+    await blockWait();
+    return result;
+})
+
+app.route.post('/authorizer/authorizeMultiple', async function(req){
+    await locker("authorizer/authorizeMultiple@" + req.query.aid);
+    logger.info("Entered /authorizer/authorizeMultiple API");
+    var results = [];
+    for(i in req.query.pids){
+        var input = {
+            query: req.query
+        }
+        input.query.pid = req.query.pids[i];
+        results.push({
+            pid: req.query.pids[i],
+            result: await authorizerSign(input)
+        });
+    }
+
+    await blockWait();
+    
+    return {
+        results: results,
+        isSuccess: true
+    }
+})
+
+async function authorizerSign(req){
     var secret = req.query.secret;
     var authid = req.query.aid;
     var pid=req.query.pid;
-    await locker("authorize@" +authid + pid);
-        // Check Authorizer
-        var publickey = util.getPublicKey(secret);
-        var checkauth = await app.model.Authorizer.findOne({
-            condition:{
-                aid: authid,
-                deleted: '0'
-            }
-        });
-        if(!checkauth) return {
-            message: "Invalid Authorizer",
-            isSuccess: false
-        }
-
-        var issue = await app.model.Issue.findOne({
-            condition: {
-                pid: pid
-            }
-        });
-        if(!issue) return {
-            message: "Invalid issue",
-            isSuccess: false
-        }
-
-        if(issue.status !== "pending") return {
-            message: "Issue is not pending",
-            isSuccess: false
-        }
-
-        var authdept = await app.model.Authdept.findOne({
-            condition: {
-                aid: authid,
-                did: issue.did,
-                level: issue.authLevel
-            }
-        });
-        if(!authdept) return {
+    try{
+    app.sdb.lock("authorizerSign@"+req.query.pid);
+    }catch(err){
+        return {
             isSuccess: false,
-            message: "Authorizer is not supposed to sign this payslip"
+            message: "Same pid in a block"
         }
-
-        var check = await app.model.Cs.findOne({
-            condition: {
-                pid: pid,
-                aid: authid
-            }
-        });
-        if(check) return {
-            message: "Already authorized",
-            isSuccess: false
+    }
+        // Check Authorizer
+    var publickey = util.getPublicKey(secret);
+    var checkauth = await app.model.Authorizer.findOne({
+        condition:{
+            aid: authid,
+            deleted: '0'
         }
+    });
+    if(!checkauth) return {
+        message: "Invalid Authorizer",
+        isSuccess: false
+    }
 
-        var issuer = await app.model.Issuer.findOne({
-            condition: {
-                iid: issue.iid
-            }
-        });
-        if(!issuer) return {
-            message: "Invalid issuer",
-            isSuccess: false
+    var issue = await app.model.Issue.findOne({
+        condition: {
+            pid: pid
         }
+    });
+    if(!issue) return {
+        message: "Invalid issue",
+        isSuccess: false
+    }
 
-        var hash = util.getHash(issue.data);
-        var base64hash = hash.toString('base64');
-        console.log("issue.hash: " + issue.hash);
-        console.log("base64hash: " + base64hash);
-        if(issue.hash !== base64hash) return {
-            message: "Hash doesn't match",
-            isSuccess: false
+    if(issue.status !== "pending") return {
+        message: "Issue is not pending",
+        isSuccess: false
+    }
+
+    var authdept = await app.model.Authdept.findOne({
+        condition: {
+            aid: authid,
+            did: issue.did,
+            level: issue.authLevel
         }
-        var base64sign = (util.getSignatureByHash(hash, secret)).toString('base64');
+    });
+    if(!authdept) return {
+        isSuccess: false,
+        message: "Authorizer is not supposed to sign this payslip"
+    }
 
-        if(checkauth.publickey === '-'){
-            app.sdb.update('authorizer', {publickey: publickey}, {aid: authid});
+    var check = await app.model.Cs.findOne({
+        condition: {
+            pid: pid,
+            aid: authid
         }
+    });
+    if(check) return {
+        message: "Already authorized",
+        isSuccess: false
+    }
 
-        app.sdb.create('cs', {
-            pid:pid,
-            aid:authid,
-            sign: base64sign,
-            publickey: publickey,
-            timestampp: new Date().getTime(),
+    var issuer = await app.model.Issuer.findOne({
+        condition: {
+            iid: issue.iid
+        }
+    });
+    if(!issuer) return {
+        message: "Invalid issuer",
+        isSuccess: false
+    }
+
+    var hash = util.getHash(issue.data);
+    var base64hash = hash.toString('base64');
+    console.log("issue.hash: " + issue.hash);
+    console.log("base64hash: " + base64hash);
+    if(issue.hash !== base64hash) return {
+        message: "Hash doesn't match",
+        isSuccess: false
+    }
+    var base64sign = (util.getSignatureByHash(hash, secret)).toString('base64');
+
+    if(checkauth.publickey === '-'){
+        app.sdb.update('authorizer', {publickey: publickey}, {aid: authid});
+    }
+
+    app.sdb.create('cs', {
+        pid:pid,
+        aid:authid,
+        sign: base64sign,
+        publickey: publickey,
+        timestampp: new Date().getTime(),
+        deleted: '0'
+    });
+
+    var department = await app.model.Department.findOne({
+        condition: {
+            did: issue.did
+        }
+    });
+
+    let level = issue.authLevel + 1;
+    while(1){
+        if(level > department.levels){
+            app.sdb.update('issue', {status: 'authorized'}, {pid: issue.pid});
+            level--;
+            break;
+        }
+        var authLevelCount = await app.model.Authdept.count({
+            did: issue.did,
+            level: level,
             deleted: '0'
         });
 
-        var department = await app.model.Department.findOne({
-            condition: {
-                did: issue.did
-            }
-        });
-
-        let level = issue.authLevel + 1;
-        while(1){
-            if(level > department.levels){
-                app.sdb.update('issue', {status: 'authorized'}, {pid: issue.pid});
-                level--;
-                break;
-            }
-            var authLevelCount = await app.model.Authdept.count({
-                did: issue.did,
-                level: level,
-                deleted: '0'
-            });
-    
-            if(authLevelCount) {
-                break;
-            }
-    
-            level++;
+        if(authLevelCount) {
+            break;
         }
-        app.sdb.update('issue', {authLevel: level}, {pid: issue.pid});
 
-        var activityMessage = checkauth.email + " has authorized payslip " + pid + " which was issued by " + issuer.email;
-        app.sdb.create('activity', {
-            activityMessage: activityMessage,
-            pid: pid,
-            timestampp: new Date().getTime(),
-            atype: 'payslip'
-        });
+        level++;
+    }
+    app.sdb.update('issue', {authLevel: level}, {pid: issue.pid});
 
-        await blockWait();
+    var activityMessage = checkauth.email + " has authorized payslip " + pid + " which was issued by " + issuer.email;
+    app.sdb.create('activity', {
+        activityMessage: activityMessage,
+        pid: pid,
+        timestampp: new Date().getTime(),
+        atype: 'payslip'
+    });
 
-        return {
-            message: "Successfully Authorized",
-            isSuccess: true
-        };
-})
+    return {
+        isSuccess: true
+    };
+}
 
 app.route.post('/authorizer/reject',async function(req,cb){
     logger.info("Entered /authorizer/reject API");
-    await locker('/authorizer/reject');
+    await locker('/authorizer/reject@' + req.query.aid);
+    var result = await authorizerReject(req);
+    if(!result.isSuccess) return result;
+    await blockWait();
+    return result;
+});
 
+app.route.post('/authorizer/rejectMultiple', async function(req){
+    await locker("/authorizer/rejectMultiple@" + req.query.aid);
+    logger.info("Entered /authorizer/rejectMultiple API");
+    var results = [];
+    for(i in req.query.pids){
+        var input = {
+            query: req.query
+        }
+        input.query.pid = req.query.pids[i];
+        results.push({
+            pid: req.query.pids[i],
+            result: await authorizerReject(input)
+        });
+    }
+
+    await blockWait();
+
+    return {
+        results: results,
+        isSuccess: true
+    }
+})
+
+async function authorizerReject(req){
+    try{
+    app.sdb.lock("authorizerReject@"+req.query.pid);
+    }catch(err){
+        return {
+            isSuccess: false,
+            message: "Same pid in a block"
+        }
+    }
     var authorizer = await app.model.Authorizer.findOne({
         condition: {
             aid: req.query.aid
@@ -620,8 +691,10 @@ app.route.post('/authorizer/reject',async function(req,cb){
         atype: 'payslip'
     });
 
-    await blockWait();
-});
+    return {
+        isSuccess: true
+    }
+}
 
 app.route.post('/searchEmployee', async function(req, cb){
     logger.info("Entered /searchEmployee API");
@@ -758,6 +831,57 @@ app.route.post("/registerEmployee", async function(req, cb){
         
 
         if(response.isSuccess == false) {
+
+            //start mock
+            var creat = {
+                email: email,
+                //empid: app.autoID.increment('employee_max_empid'),
+                empid: uuid,
+                name: name + " " +lastName,
+                identity: identity,
+                iid: issuer.iid,
+                walletAddress: makePassword(),
+                department: req.query.department,
+                deleted: "0",
+                extra: extra
+            }
+
+            console.log("About to make a row");
+
+            app.sdb.create('employee', creat);
+
+            var mapEntryObj = {
+                address: creat.walletAddress,
+                dappid: dappid
+            }
+            var mapcall = await SuperDappCall.call('POST', '/mapAddress', mapEntryObj);
+            console.log(JSON.stringify(mapcall));
+
+            var mailBody = {
+                mailType: "sendEmployeeRegistered",
+                mailOptions: {
+                    to: [creat.email],
+                    empname: creat.name,
+                    wallet: {}
+                }
+            }
+            mailCall.call("POST", "", mailBody, 0);
+
+            var activityMessage = email + " is registered as an Employee in " + department + " department by " + issuer.email + ".";
+            app.sdb.create('activity', {
+                activityMessage: activityMessage,
+                pid: email,
+                timestampp: new Date().getTime(),
+                atype: 'employee'
+            });
+
+            await blockWait();
+            return {
+                isSuccess: true,
+                message: "Created employee with mock"
+            }
+            //end mock
+
             token = await register.getToken(0,0);
 
             logger.info("Registering the Recipient on BKVS");
@@ -1011,6 +1135,22 @@ app.route.post('/issuer/issuedPayslips', async function(req, cb){
     }
 })
 
+function makePassword() {
+    var text = "";
+    var caps = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    var smalls = "abcdefghijklmnopqrstuvwxyz";
+    var symbols = "!@$";
+    var numbers = "1234567890";
+
+    for (var i = 0; i < 3; i++){
+    text += caps.charAt(Math.floor(Math.random() * caps.length));
+    text += smalls.charAt(Math.floor(Math.random() * smalls.length));
+    text += symbols.charAt(Math.floor(Math.random() * symbols.length));
+    text += numbers.charAt(Math.floor(Math.random() * numbers.length));
+    }
+    return text;
+}
+
 app.route.post('/registerUser/', async function(req, cb){
     await locker("registerUser@" + role);
 
@@ -1094,23 +1234,6 @@ app.route.post('/registerUser/', async function(req, cb){
         var response = await registrations.exists(request, 0);      
 
         if(!response.isSuccess){
-
-            function makePassword() {
-                var text = "";
-                var caps = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-                var smalls = "abcdefghijklmnopqrstuvwxyz";
-                var symbols = "!@$";
-                var numbers = "1234567890";
-            
-                for (var i = 0; i < 3; i++){
-                text += caps.charAt(Math.floor(Math.random() * caps.length));
-                text += smalls.charAt(Math.floor(Math.random() * smalls.length));
-                text += symbols.charAt(Math.floor(Math.random() * symbols.length));
-                text += numbers.charAt(Math.floor(Math.random() * numbers.length));
-                }
-                return text;
-            }
-
             var request = {
                 query: {
                     countryId:countryId,

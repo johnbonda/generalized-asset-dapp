@@ -8,8 +8,46 @@ var util = require("../utils/util");
 
 
 app.route.post("/issueTransactionCall", async function(req, res){
-    await locker("issueTransactionCall");
+    await locker("issueTransactionCall@"+req.query.pid);
     logger.info("Entered /issueTransactionCall API");
+    var result = await issueAsset(req);
+    if(!result.isSuccess) return result;
+    await blockWait();
+    return result;
+})
+
+app.route.post("/issueTransactionCallMultiple", async function(req){
+    await locker("issueTransactionCallMultiple@" + req.query.iid);
+    logger.info("Entered /issueTransactionCallMultiple API");
+    var results = [];
+    for(i in req.query.pids){
+        var input = {
+            query: req.query
+        }
+        input.query.pid = req.query.pids[i];
+        results.push({
+            pid: req.query.pids[i],
+            result: await issueAsset(input)
+        });
+    }
+
+    await blockWait();
+
+    return {
+        results: results,
+        isSuccess: true
+    }
+});
+
+async function issueAsset(req){
+    try{
+    app.sdb.lock("finalIssueAsset@"+req.query.pid);
+    }catch(err){
+        return {
+            isSuccess: false,
+            message: "Same pid in a block"
+        }
+    }
     var transactionParams = {};
     var pid = req.query.pid;
 
@@ -95,10 +133,8 @@ app.route.post("/issueTransactionCall", async function(req, res){
         atype: 'payslip'
     });
 
-    await blockWait();
-
     return {
         isSuccess: true,
         transactionId: response.transactionId
     }
-})
+}
