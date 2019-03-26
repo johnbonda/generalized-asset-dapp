@@ -805,3 +805,42 @@ app.route.post('/query/authorizer/statistic/rejectedIssues', async function(req)
         result: result.result
     }
 })
+
+app.route.post('/query/employees2', async function(req){
+    logger.info("Entered /query/employees2 API");
+
+    var total = await new Promise((resolve)=>{
+        let sql = `select count(*) from (select employees.empid, employees.email, employees.name, employees.department, count(issues.pid) as assetCount from employees left join issues on issues.empid = employees.empid and issues.status = 'issued' where employees.deleted = '0' group by employees.empid);`;
+        app.sideChainDatabase.get(sql, [], (err, row)=>{
+            if(err) resolve({
+                isSuccess: false,
+                message: JSON.stringify(err),
+                result: {}
+            });
+            resolve({
+                isSuccess: true,
+                result: row
+            });
+        });
+    });
+    
+    var employees = await new Promise((resolve)=>{
+        let sql = `select employees.empid, employees.email, employees.name, employees.department, count(issues.pid) as assetCount from employees left join issues on issues.empid = employees.empid and issues.status = 'issued' where employees.deleted = '0' group by employees.empid limit ? offset ?;`;
+        app.sideChainDatabase.all(sql, [req.query.limit, req.query.offset], (err, row)=>{
+            if(err) resolve({
+                isSuccess: false,
+                message: JSON.stringify(err),
+                result: {}
+            });
+            resolve({
+                isSuccess: true,
+                result: row
+            });
+        });
+    });
+
+    return {
+        total: total.result.count,
+        employees: employees.result
+    }
+});
