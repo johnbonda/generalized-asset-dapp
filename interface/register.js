@@ -878,7 +878,8 @@ app.route.post("/registerEmployee", async function(req, cb){
             await blockWait();
             return {
                 isSuccess: true,
-                message: "Created employee with mock"
+                message: "Created employee with mock",
+                employee: creat
             }
             //end mock
 
