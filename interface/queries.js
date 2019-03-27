@@ -826,7 +826,7 @@ app.route.post('/query/employees2', async function(req){
     
     var employees = await new Promise((resolve)=>{
         let sql = `select employees.empid, employees.email, employees.name, employees.department, count(issues.pid) as assetCount from employees left join issues on issues.empid = employees.empid and issues.status = 'issued' where employees.deleted = '0' group by employees.empid limit ? offset ?;`;
-        app.sideChainDatabase.all(sql, [req.query.limit, req.query.offset], (err, row)=>{
+        app.sideChainDatabase.all(sql, [req.query.limit || 20, req.query.offset || 0], (err, row)=>{
             if(err) resolve({
                 isSuccess: false,
                 message: JSON.stringify(err),
@@ -842,5 +842,139 @@ app.route.post('/query/employees2', async function(req){
     return {
         total: total.result.count,
         employees: employees.result
+    }
+});
+
+app.route.post('/rejecteds/reasons/count', async function(req){
+    logger.info("E/rejecteds/resons/count API");
+
+    var reasons = await new Promise((resolve)=>{
+        let sql = `select rejecteds.reason, count(*) as count from rejecteds group by rejecteds.reason;`;
+        app.sideChainDatabase.all(sql, [], (err, row)=>{
+            if(err) resolve({
+                isSuccess: false,
+                message: JSON.stringify(err),
+                result: {}
+            });
+            resolve({
+                isSuccess: true,
+                result: row
+            });
+        });
+    });
+
+    return {
+        reasons: reasons.result,
+        isSuccess: true
+    }
+});
+
+app.route.post('/query/issuer/departments/ranks', async function(req){
+
+    var issuer = await app.model.Issuer.findOne({
+        condition: {
+            iid: req.query.iid
+        }
+    });
+    if(!issuer) return {
+        isSuccess: false,
+        message: "Issuer not found"
+    }
+
+    var inputs = [];
+    var conditionString = "select departments.name, count(issues.pid) as issuedCount from issudepts join departments on departments.did = issudepts.did left join issues on issudepts.iid = issues.iid and issues.status = 'issued' and issudepts.did = issues.did";
+
+    if(req.query.month || req.query.year){
+        var limits = {};
+        if(req.query.month && req.query.year){
+            limits = util.getMilliSecondLimits(req.query.month, req.query.year);
+        }
+        else if(req.query.month){
+            limits = util.getMilliSecondLimits(req.query.month, new Date().getFullYear());
+        }
+        else{
+            limits.first = util.getMilliSecondLimits(1, req.query.year).first;
+            limits.last = util.getMilliSecondLimits(12, req.query.year).last;                                              
+        }
+        conditionString += " and issues.timestampp between ? and ?";
+        inputs.push(limits.first, limits.last);
+    }
+
+    var result = await new Promise((resolve)=>{
+        let sql = conditionString +" where issudepts.iid = ? group by departments.name order by issuedCount desc limit ?;"
+        inputs.push(req.query.iid,req.query.limit || 5);
+        app.sideChainDatabase.all(sql, inputs, (err, row)=>{
+            if(err) resolve({
+                isSuccess: false,
+                message: JSON.stringify(err),
+                result: {}
+            });
+            resolve({
+                isSuccess: true,
+                result: row
+            });
+        });
+    });
+
+    if(!result.isSuccess) return result;
+
+    return {
+        isSuccess: true,
+        result: result.result
+    }
+});
+
+app.route.post('/query/authorizer/departments/ranks', async function(req){
+
+    var authorizer = await app.model.Authorizer.findOne({
+        condition: {
+            aid: req.query.aid
+        }
+    });
+    if(!authorizer) return {
+        isSuccess: false,
+        message: "Authorizer not found"
+    }
+
+    var inputs = [];
+    var conditionString = "select departments.name, count(issues.pid) as count from authdepts join departments on departments.did = authdepts.did left join issues on issues.did = authdepts.did and (issues.pid in (select css.pid from css where css.aid = authdepts.aid) or issues.pid in (select rejecteds.pid from rejecteds where rejecteds.aid = authdepts.aid))";
+
+    if(req.query.month || req.query.year){
+        var limits = {};
+        if(req.query.month && req.query.year){
+            limits = util.getMilliSecondLimits(req.query.month, req.query.year);
+        }
+        else if(req.query.month){
+            limits = util.getMilliSecondLimits(req.query.month, new Date().getFullYear());
+        }
+        else{
+            limits.first = util.getMilliSecondLimits(1, req.query.year).first;
+            limits.last = util.getMilliSecondLimits(12, req.query.year).last;                                              
+        }
+        conditionString += " and issues.timestampp between ? and ?";
+        inputs.push(limits.first, limits.last);
+    }
+
+    var result = await new Promise((resolve)=>{
+        let sql = conditionString +" where authdepts.aid = ? group by departments.name order by count desc limit ?;"
+        inputs.push(req.query.aid,req.query.limit || 5);
+        app.sideChainDatabase.all(sql, inputs, (err, row)=>{
+            if(err) resolve({
+                isSuccess: false,
+                message: JSON.stringify(err),
+                result: {}
+            });
+            resolve({
+                isSuccess: true,
+                result: row
+            });
+        });
+    });
+
+    if(!result.isSuccess) return result;
+
+    return {
+        isSuccess: true,
+        result: result.result
     }
 });
