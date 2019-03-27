@@ -978,3 +978,26 @@ app.route.post('/query/authorizer/departments/ranks', async function(req){
         result: result.result
     }
 });
+
+app.route.post('/query/department/issuedCount', async function(req){
+
+    var total = await new Promise((resolve)=>{
+        let sql = `select count(*) as count from issues join departments on departments.did = issues.did where issues.status = 'issued' and departments.name = ?;`;
+        app.sideChainDatabase.get(sql, [req.query.department], (err, row)=>{
+            if(err) resolve({
+                isSuccess: false,
+                message: JSON.stringify(err),
+                result: {}
+            });
+            resolve({
+                isSuccess: true,
+                result: row
+            });
+        });
+    });
+
+    return {
+        isSuccess: true,
+        count: total.result.count
+    }
+});
