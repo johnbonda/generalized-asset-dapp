@@ -119,7 +119,8 @@ async function issueAsset(req){
         mailType: "sendAssetIssued",
         mailOptions: {
             to: [employee.email],
-            payslip: JSON.parse(issue.data)
+            payslip: JSON.parse(issue.data),
+            name: employee.name
         }
     }
 
