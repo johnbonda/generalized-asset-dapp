@@ -245,7 +245,7 @@ app.route.post('/payslip/initialIssue',async function(req,cb){
 
      if(!req.query.data) return {
          isSuccess: false,
-         message: "Please provide the payslip object"
+         message: "Please provide the asset object"
      }
 
      req.query.data.identity = identity;
@@ -315,7 +315,7 @@ app.route.post('/payslip/initialIssue',async function(req,cb){
     await blockWait(); 
 
     return {
-        message: "Payslip initiated",
+        message: "Asset initiated",
         isSuccess: true
     }
 });
@@ -415,7 +415,7 @@ app.route.post('/payslip/getPayslip', async function(req, cb){
     });
     if(!payslip) return {
         isSuccess: false,
-        message: "Invalid Payslip ID"
+        message: "Invalid Asset ID"
     }
 
     return {
