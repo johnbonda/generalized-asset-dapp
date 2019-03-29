@@ -1,0 +1,14 @@
+/home/john/Belfrics/generalized-asset-dapp/node_modules/aws-sdk/node_modules/.bin/uuid
+/home/john/Belfrics/generalized-asset-dapp/node_modules/.bin/rimraf
+/home/john/Belfrics/generalized-asset-dapp/node_modules/.bin/mkdirp
+/home/john/Belfrics/generalized-asset-dapp/node_modules/.bin/sshpk-sign
+/home/john/Belfrics/generalized-asset-dapp/node_modules/.bin/detect-libc
+/home/john/Belfrics/generalized-asset-dapp/node_modules/.bin/node-pre-gyp
+/home/john/Belfrics/generalized-asset-dapp/node_modules/.bin/needle
+/home/john/Belfrics/generalized-asset-dapp/node_modules/.bin/uuid
+/home/john/Belfrics/generalized-asset-dapp/node_modules/.bin/sshpk-conv
+/home/john/Belfrics/generalized-asset-dapp/node_modules/.bin/mime
+/home/john/Belfrics/generalized-asset-dapp/node_modules/.bin/rc
+/home/john/Belfrics/generalized-asset-dapp/node_modules/.bin/sshpk-verify
+/home/john/Belfrics/generalized-asset-dapp/node_modules/.bin/nopt
+/home/john/Belfrics/generalized-asset-dapp/node_modules/.bin/semver
