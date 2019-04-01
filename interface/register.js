@@ -645,12 +645,13 @@ async function authorizerReject(req){
 
     var issue = await app.model.Issue.findOne({
         condition: {
-            pid: req.query.pid
+            pid: req.query.pid,
+            status: 'pending'
         }
     });
     if(!issue) return {
         isSuccess: false,
-        message: "Invalid Asset ID"
+        message: "Asset not pending"
     }
 
     var issuer = await app.model.Issuer.findOne({
