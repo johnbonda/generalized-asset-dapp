@@ -177,3 +177,34 @@ app.route.post("/testingDatabaseAccess", async function(req){
         isSuccess: false
     }
 })
+
+app.route.post('/mockEmployeeRegistration', async function(req){
+    app.sdb.create('employee', {
+        email: req.query.email,
+        empid: req.query.empid,
+        name: req.query.name,
+        identity: JSON.stringify(req.query.identity),
+        iid: req.query.iid,
+        extra: JSON.stringify(req.query.extra),
+        walletAddress: req.query.walletAddress,
+        department: req.query.department,
+        deleted: '0'
+    });
+    await blockWait();
+})
+
+app.route.post('/mockIssuerRegistration', async function(req){
+    app.sdb.create('issuer', {
+        iid: req.query.iid,
+        publickey: req.query.publickey,
+        email: req.query.email,
+        timestampp: new Date().getTime(),
+        deleted: '0'
+    });
+    app.sdb.create('issudept', {
+        iid: req.query.iid,
+        did: req.query.did,
+        deleted: '0'
+    });
+    await blockWait();
+})

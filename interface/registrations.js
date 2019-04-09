@@ -392,13 +392,25 @@ app.route.post('/employee/payslips/statistic', async function(req, cb){
         condition: {
             empid: employee.empid
         },
+        fields: ['pid', 'iid', 'status', 'data'],
         sort: {
             timestampp: -1
         },
         limit: req.query.limit,
         offset: req.query.offset
     });
+    var setting = await app.model.Setting.findOne({
+        condition: {
+            id: '0'
+        }
+    });
     for(i in issues){
+        var payslip = JSON.parse(issues[i].data);
+        var mainfields = JSON.parse(setting.mainfields);
+        for(j in mainfields){
+            mainfields[j] = payslip[j] || "-";
+        }
+        issues[i].mainfields = mainfields;
         var issuer = await app.model.Issuer.findOne({
             condition: {
                 iid: issues[i].iid
@@ -406,6 +418,7 @@ app.route.post('/employee/payslips/statistic', async function(req, cb){
             fields: ['email']
         })
         issues[i].issuedBy = issuer.email;
+        delete issues[i].data
     }
     return {
         issuedPayslips: issues,
