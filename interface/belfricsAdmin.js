@@ -73,3 +73,21 @@ app.route.post('/admin/setContractFee', async function(req){
         isSuccess: true
     }
 })
+
+app.route.get('/rechargeDetails', async function(req){
+    var superUserBalance = await app.model.Balance.findOne({
+        condition: {
+            address: app.custom.dappOwner
+        }
+    });
+    var certsIssued = await app.model.Issue.count({
+        status: 'issued'
+    });
+    return {
+        isSuccess: true,
+        superUserBalance: superUserBalance.balance,
+        issuedCount: certsIssued,
+        success: true
+    }
+});
+

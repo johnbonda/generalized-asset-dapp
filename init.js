@@ -12,6 +12,11 @@ module.exports = async function () {
       type: 1003,
       name: "Final issue",
       location: 'payroll.issuePaySlip'
+    },
+    addressTesting: {
+      type: 1004,
+      name: "Testing Address",
+      location: 'temp.addressTesting'
     }
   }
   for(i in contractObjects){
@@ -36,10 +41,13 @@ module.exports = async function () {
   }while(!getFees);
 
   if(getFees && getFees.isSuccess){
+    app.custom.dappOwner = getFees.dappOwner;
     for(i in getFees.fee){
       app.registerFee(contractObjects[getFees.fee[i].contract].type, getFees.fee[i].transactionFee, 'BEL');
     }
   }
+
+  console.log("This is the superuser's address: " + app.custom.dappOwner);
 
   app.custom.contractObjects = contractObjects;
   

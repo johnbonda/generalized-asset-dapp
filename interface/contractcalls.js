@@ -4,6 +4,8 @@ var logger = require("../utils/logger");
 var locker = require("../utils/locker");
 var blockWait = require("../utils/blockwait");
 var util = require("../utils/util");
+var defaultFee = require('../config.json').defaultFee;
+var addressUtils = require('../utils/address');
 
 
 
@@ -101,19 +103,19 @@ async function issueAsset(req){
     transactionParams.type = 1003;
     transactionParams.fee = req.query.fee;
     transactionParams.secret = req.query.secret;
-    transactionParams.senderPublicKey = req.query.senderPublicKey;
 
-    console.log(JSON.stringify(transactionParams));
+    var balanceCredit = await creditBalance(req.query.secret, "finalIssue");
+    if(!balanceCredit.isSuccess) return balanceCredit;
 
     var response = await DappCall.call('PUT', "/unsigned", transactionParams, util.getDappID(),0);
 
-    if(!response.success) return {
-        isSuccess: false,
-        message: JSON.stringify(response)
+    if(!response.success){ 
+        revertOwnerBalance(req.query.secret, "finalIssue");
+        return {
+            isSuccess: false,
+            message: JSON.stringify(response)
+        }
     }
-    
-    app.sdb.update('issue', {status: "issued"}, {pid: pid});  
-    app.sdb.update('issue', {timestampp: new Date().getTime()}, {pid: pid});  
 
     var mailBody = {
         mailType: "sendAssetIssued",
@@ -137,5 +139,111 @@ async function issueAsset(req){
     return {
         isSuccess: true,
         transactionId: response.transactionId
+    }
+}
+
+app.route.post('/useSuperAdminsBalance', async function(req){
+    var issuerAddress = addressUtils.generateBase58CheckAddress(util.getPublicKey(req.query.secret));
+    var ownerAddress = app.custom.dappOwner;
+    console.log("Issuer's Address: " + issuerAddress);
+    console.log("Owner's Address: " + ownerAddress);
+    var contractObjects = app.custom.contractObjects;
+    var currentFee = app.getFee(contractObjects.addressTesting.type);
+    if(!currentFee) currentFee = {
+        min: defaultFee
+    }
+
+    console.log("The fee is: " + currentFee.min);
+
+    var ownerBalance = await app.model.Balance.findOne({
+        condition: {
+            address: ownerAddress
+        }
+    });
+    if(!ownerBalance) ownerBalance = {
+        balance: '0'
+    };
+
+    var issuerBalance = await app.model.Balance.findOne({
+        condition: {
+            address: issuerAddress
+        }
+    });
+    if(!issuerBalance) issuerBalance = {
+        balance: '0'
+    };
+
+    console.log("Owner Address: " + ownerAddress + " Owner Balance: " + ownerBalance.balance);
+    console.log("Issuer Address: " + issuerAddress + " Issuer Balance: " + issuerBalance.balance);
+
+    app.balances.transfer('BEL', currentFee.min, ownerAddress, issuerAddress);
+
+    await blockWait();
+
+    var ownerBalance = await app.model.Balance.findOne({
+        condition: {
+            address: ownerAddress
+        }
+    });
+    if(!ownerBalance) ownerBalance = {
+        balance: '0'
+    };
+
+    var issuerBalance = await app.model.Balance.findOne({
+        condition: {
+            address: issuerAddress
+        }
+    });
+    if(!issuerBalance) issuerBalance = {
+        balance: '0'
+    };
+
+    console.log("Owner Address: " + ownerAddress + " Owner Balance: " + ownerBalance.balance);
+    console.log("Issuer Address: " + issuerAddress + " Issuer Balance: " + issuerBalance.balance);
+});
+
+async function creditBalance(secret, contract){
+    var spenderAddress = addressUtils.generateBase58CheckAddress(util.getPublicKey(secret));
+    var ownerAddress = app.custom.dappOwner;
+    var contractObjects = app.custom.contractObjects;
+    var currentFee = app.getFee(contractObjects[contract].type);
+    if(!currentFee) currentFee = {
+        min: defaultFee
+    }
+
+    var ownerBalance = await app.model.Balance.findOne({
+        condition: {
+            address: ownerAddress
+        }
+    });
+    if(!ownerBalance) ownerBalance = {
+        balance: '0'
+    };
+    if(Number(ownerBalance.balance) < Number(currentFee.min)) return {
+        isSuccess: false,
+        message: "Owner doesn't have enough dapp balance"
+    }
+
+    app.balances.transfer('BEL', currentFee.min, ownerAddress, spenderAddress);
+
+    await blockWait();
+
+    return {
+        isSuccess: true
+    }
+}
+
+async function revertOwnerBalance(secret, contract){
+    var spenderAddress = addressUtils.generateBase58CheckAddress(util.getPublicKey(secret));
+    var ownerAddress = app.custom.dappOwner;
+    var contractObjects = app.custom.contractObjects;
+    var currentFee = app.getFee(contractObjects[contract].type);
+    if(!currentFee) currentFee = {
+        min: defaultFee
+    }
+    app.balances.transfer('BEL', currentFee.min, spenderAddress, ownerAddress);
+
+    return {
+        isSuccess: true
     }
 }

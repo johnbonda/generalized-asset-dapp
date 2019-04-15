@@ -20,5 +20,9 @@ module.exports = {
         app.sdb.create('testing', {
             transactionid: this.trs.id
         });
+    },
+
+    addressTesting: async function(){
+        console.log("The address is: " + this.trs.senderId);
     }
 }
