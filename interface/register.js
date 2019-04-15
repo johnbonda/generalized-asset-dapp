@@ -309,6 +309,11 @@ app.route.post('/payslip/initialIssue',async function(req,cb){
     if(issuer.publickey === '-'){
         app.sdb.update('issuer', {publickey: publickey}, {iid:issuerid});
     }
+
+    app.sdb.create('template', {
+        pid: issue.pid,
+        template: req.query.template
+    });
     
     app.autoID.increment('issue_max_pid');
 

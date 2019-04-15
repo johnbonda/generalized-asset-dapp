@@ -547,12 +547,19 @@ app.route.post('/payslip/statistic2', async function(req, cb){
         }
     });
 
+    var template = await app.model.Template.findOne({
+        condition: {
+            pid: issue.pid
+        }
+    });
+
     var result = {
         issue: issue,
         issuer: issuer,
         signatures: authSigned.result,
         totalLevels: department.levels,
-        isSuccess: true
+        isSuccess: true,
+        template: template.template
     };
 
     if(issue.status === 'rejected'){
