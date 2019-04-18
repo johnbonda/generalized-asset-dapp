@@ -392,7 +392,7 @@ app.route.post('/employee/payslips/statistic', async function(req, cb){
         condition: {
             empid: employee.empid
         },
-        fields: ['pid', 'iid', 'status', 'data'],
+        fields: ['pid', 'iid', 'status', 'data', 'timestampp'],
         sort: {
             timestampp: -1
         },
