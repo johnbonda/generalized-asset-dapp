@@ -705,7 +705,6 @@ app.route.post('/department/get', async function(req, cb){
 
 app.route.post('/customFields/define', async function(req, cb){
     await locker('/assetFields/define');
-    if(!req.query.mainfields) req.query.mainfields = {}; // Just to run this until frontend updates
     var setting = await app.model.Setting.findOne({
         condition: {
             id: '0'
@@ -714,7 +713,6 @@ app.route.post('/customFields/define', async function(req, cb){
     try{
     var fields = JSON.stringify(req.query.fields)
     var identity = JSON.stringify(req.query.identity);
-    var mainfields = JSON.stringify(req.query.mainfields);
     }catch(err){
         return {
             isSuccess: false,
@@ -725,14 +723,12 @@ app.route.post('/customFields/define', async function(req, cb){
     if(setting){
        app.sdb.update('setting', {fields: fields}, {id: '0'});
        app.sdb.update('setting', {identity: identity}, {id: '0'}); 
-       app.sdb.update('setting', {mainfields: mainfields}, {id: '0'});
     }
     else{
         app.sdb.create('setting', {
             id: '0',
             fields: fields,
-            identity: identity,
-            mainfields: mainfields
+            identity: identity
         })
     }
     await blockWait();
@@ -756,7 +752,6 @@ app.route.post('/customFields/get', async function(req, cb){
     return {
         fields: JSON.parse(setting.fields),
         identity: JSON.parse(setting.identity),
-        mainfields: JSON.parse(setting.mainfields),
         isSuccess: true
     }
 });

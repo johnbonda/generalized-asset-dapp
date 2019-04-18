@@ -15,11 +15,6 @@ module.exports = {
             name: 'identity',
             type: 'String',
             length: 255
-        },
-        {
-            name: 'mainfields',
-            type: 'String',
-            length: 255
         }
     ]
 }
