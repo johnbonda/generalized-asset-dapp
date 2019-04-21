@@ -18,6 +18,92 @@ app.route.post("/issueTransactionCall", async function(req, res){
     return result;
 })
 
+app.route.post('/issueTransactionCallMultiple2', async function(req){
+    await locker("/issueTransactionCallMuliple API" + req.query.iid);
+    if(!req.query.pids) return {
+        isSuccess: false,
+        message: "Need a pids array containing pids"
+    }
+    var pids = Array.from(new Set(req.query.pids));
+    
+    var issuer = await app.model.Issuer.findOne({
+        condition: {
+            iid: req.query.iid
+        }
+    });
+    if(!issuer) return {
+        isSuccess: false,
+        message: "Invalid issuer"
+    }
+
+    var currentFee = app.getFee(app.custom.contractObjects['finalIssue'].type);
+    if(!currentFee) currentFee = {
+        min: defaultFee
+    }
+
+    var ownerBalance = await app.model.Balance.findOne({
+        condition: {
+            address: app.custom.dappOwner
+        }
+    });
+    if(!ownerBalance || Number(ownerBalance.balance) < (Number(currentFee.min)*pids.length)) return {
+        isSuccess: false,
+        message: "Owner has insufficient balance"
+    }
+
+    var issueDetails = [];
+
+    for(i in pids){
+        var issue = await app.model.Issue.findOne({
+            condition: pids[i]
+        });
+        if(!issue) return {
+            isSuccess: false,
+            message: "Invalid Asset: " + pids[i]
+        }
+        if(issue.status === 'issued') return {
+            isSuccess: false,
+            message: "Asset already issued: " + pids[i]
+        }
+        if(issue.status === 'pending') return {
+            message: "Asset not authorized",
+            isSuccess: false
+        }
+        if(issue.iid != issuer.iid) return {
+            message: "Invalid issuer",
+            isSuccess: false
+        }
+        
+        var employee = await app.model.Employee.findOne({
+            empid: issue.empid
+        });
+        issueDetails.push({
+            args: JSON.stringify([employee.walletAddress, 'payslip', JSON.parse(issue.data), issue.pid, ownerBalance.balance]),
+            type: app.custom.contractObjects['finalIssue'].type,
+            fee: currentFee.min,
+            secret: req.query.secret
+        });
+    }
+
+    // Transfer money from dappOwner to issuer
+    var issuerAddress = addressUtils.generateBase58CheckAddress(util.getPublicKey(req.query.secret));
+    app.balances.transfer('BEL', String(Number(currentFee.min)*pids.length), ownerAddress, issuerAddress);
+    await blockWait();
+
+    var fails = [];
+    for(i in issueDetails){
+        var response = await DappCall.call("PUT", "/unsigned", issueDetails[i], util.getDappID(), 0);
+        if(!response.success) {
+            revertOwnerBalance(req.query.secret, "finalIssue");
+            fails.push({
+                pid: (JSON.parse(issueDetails[i].args))[3],
+                message: JSON.stringify(response)
+            });
+        } 
+    }
+
+})
+
 app.route.post("/issueTransactionCallMultiple", async function(req){
     await locker("issueTransactionCallMultiple@" + req.query.iid);
     logger.info("Entered /issueTransactionCallMultiple API");
@@ -94,18 +180,16 @@ async function issueAsset(req){
         message: "Invalid employee",
         isSuccess: false
     }
-    
-    // if(issue.status !== "authorized") return "Payslip not authorized yet";
 
-    var array = [employee.walletAddress, "payslip", JSON.parse(issue.data), issue.pid];
+    var balanceCredit = await creditBalance(req.query.secret, "finalIssue");
+    if(!balanceCredit.isSuccess) return balanceCredit;
+
+    var array = [employee.walletAddress, "payslip", JSON.parse(issue.data), issue.pid, balanceCredit.ownerBalance];
 
     transactionParams.args = JSON.stringify(array);
     transactionParams.type = 1003;
     transactionParams.fee = req.query.fee;
     transactionParams.secret = req.query.secret;
-
-    var balanceCredit = await creditBalance(req.query.secret, "finalIssue");
-    if(!balanceCredit.isSuccess) return balanceCredit;
 
     var response = await DappCall.call('PUT', "/unsigned", transactionParams, util.getDappID(),0);
 
@@ -229,7 +313,8 @@ async function creditBalance(secret, contract){
     await blockWait();
 
     return {
-        isSuccess: true
+        isSuccess: true,
+        ownerBalance: ownerBalance.balance
     }
 }
 

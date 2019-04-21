@@ -14,14 +14,15 @@ var locker = require("../utils/locker");
 
 module.exports = {
 
-    issuePaySlip: async function(toaddr, type, payslip, pid){
+    issuePaySlip: async function(toaddr, type, payslip, pid, ownerBalance){
 
         app.sdb.update('issue', {transactionId: this.trs.id}, {pid: pid});
         app.sdb.update('issue', {status: "issued"}, {pid: pid});  
         app.sdb.update('issue', {timestampp: new Date().getTime()}, {pid: pid});
-
-        
-
+        app.sdb.create('trasactiondetail', {
+            transactionId: this.trs.id,
+            balance: ownerBalance
+        });
     },
 
     authorize: async function(iid, secret, authid, dappid){

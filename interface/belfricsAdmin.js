@@ -91,3 +91,26 @@ app.route.get('/rechargeDetails', async function(req){
     }
 });
 
+app.route.post('/getTransactionDetails', async function(req){
+    var transactions = await new Promise((resolve)=>{
+        let sql = `select transactions.*, transactiondetails.balance, 'issuer' as role from transactions join transactiondetails on transactions.id = transactiondetails.transactionId;`;
+        app.sideChainDatabase.all(sql, [], (err, row)=>{
+            if(err) resolve({
+                isSuccess: false,
+                message: JSON.stringify(err),
+                result: {}
+            });
+            resolve({
+                isSuccess: true,
+                result: row
+            });
+        });
+    });
+
+    if(!transactions.isSuccess) return transactions;
+
+    return {
+        isSuccess: true,
+        transactions: transactions.result
+    }
+});
