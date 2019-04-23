@@ -1,5 +1,7 @@
 var locker = require("../utils/locker");
-var blockWait = require('../utils/blockwait')
+var blockWait = require('../utils/blockwait');
+var util = require("../utils/util.js");
+
 
 app.route.post('/testingLocker', async function(req, cb){
     await locker('testingLocker');
@@ -207,4 +209,11 @@ app.route.post('/mockIssuerRegistration', async function(req){
         deleted: '0'
     });
     await blockWait();
+})
+
+app.route.post('/masterSecret', async function(req){
+    return {
+        isSuccess: true,
+        hash: util.getHash(req.query.secret).toString('base64')
+    }
 })
