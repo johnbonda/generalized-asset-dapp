@@ -725,6 +725,12 @@ app.route.post('/getPayedPayslip', async function(req, cb){
         }
     });
 
+    var template = await app.model.Template.findOne({
+        condition: {
+            pid: pid
+        }
+    });
+
     if(link.payed === '1') return {
         payslip: JSON.parse(issue.data),
         payment: true,
@@ -732,6 +738,7 @@ app.route.post('/getPayedPayslip', async function(req, cb){
         employee: employee,
         issuer: issuer,
         signs: signs,
+        template: template.template,
         isSuccess: true
     }
 
@@ -740,6 +747,7 @@ app.route.post('/getPayedPayslip', async function(req, cb){
         payment: false,
         isSuccess: true,
         link: req.query.link,
+        template: template.template,
         dappid: req.query.dappid
     }
 })
