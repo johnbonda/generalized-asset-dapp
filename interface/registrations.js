@@ -747,7 +747,6 @@ app.route.post('/getPayedPayslip', async function(req, cb){
         payment: false,
         isSuccess: true,
         link: req.query.link,
-        template: template.template,
         dappid: req.query.dappid
     }
 })
