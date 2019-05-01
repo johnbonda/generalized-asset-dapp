@@ -20,6 +20,11 @@ module.exports = {
             name: 'orderId',
             type: 'String',
             length: 255
+        },
+        {
+            name: 'timestampp',
+            type: 'Number',
+            length: 255
         }
     ]
 }

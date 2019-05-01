@@ -1508,12 +1508,12 @@ app.route.post('/payslip/payment', async function(req, cb){
         paysliplink: req.query.link,
         ownerEarning: req.query.ownerEarning,
         adminEarning: req.query.adminEarning,
-        orderId: req.query.orderId
+        orderId: req.query.orderId,
+        timestampp: new Date().getTime()
     });
 
     await blockWait();
 
-    
     return {
         isSuccess: true
     }
