@@ -97,15 +97,16 @@ async function issueAsset(req){
     
     // if(issue.status !== "authorized") return "Payslip not authorized yet";
 
-    var array = [employee.walletAddress, "payslip", JSON.parse(issue.data), issue.pid];
-
-    transactionParams.args = JSON.stringify(array);
-    transactionParams.type = 1003;
-    transactionParams.fee = req.query.fee;
-    transactionParams.secret = req.query.secret;
 
     var balanceCredit = await creditBalance(req.query.secret, "finalIssue");
     if(!balanceCredit.isSuccess) return balanceCredit;
+
+    var array = [employee.walletAddress, "payslip", JSON.parse(issue.data), issue.pid, balanceCredit.ownerBalance];
+
+    transactionParams.args = JSON.stringify(array);
+    transactionParams.type = 1003;
+    transactionParams.fee = balanceCredit.fee;
+    transactionParams.secret = req.query.secret;
 
     var response = await DappCall.call('PUT', "/unsigned", transactionParams, util.getDappID(),0);
 
@@ -229,7 +230,9 @@ async function creditBalance(secret, contract){
     await blockWait();
 
     return {
-        isSuccess: true
+        isSuccess: true,
+        ownerBalance: ownerBalance.balance,
+        fee: currentFee.min
     }
 }
 

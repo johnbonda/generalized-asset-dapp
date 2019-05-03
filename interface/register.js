@@ -1506,14 +1506,15 @@ app.route.post('/payslip/payment', async function(req, cb){
     app.sdb.update('paysliplink', {payed: '1'}, {link: req.query.link});
     app.sdb.create('earning', {
         paysliplink: req.query.link,
+        email: req.query.email,
         ownerEarning: req.query.ownerEarning,
         adminEarning: req.query.adminEarning,
-        orderId: req.query.orderId
+        orderId: req.query.orderId,
+        timestampp: new Date().getTime()
     });
 
     await blockWait();
 
-    
     return {
         isSuccess: true
     }
