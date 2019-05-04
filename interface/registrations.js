@@ -738,6 +738,7 @@ app.route.post('/getPayedPayslip', async function(req, cb){
     }
 
     return {
+        pid: pid,
         employee: employee,
         payment: false,
         isSuccess: true,
