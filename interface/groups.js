@@ -1316,7 +1316,7 @@ app.route.post('/getDepartment/authorizers', async function(req, cb){
         }
     });
     if(!department) return {
-        isSuccesS: false,
+        isSuccess: false,
         message: "Department does not exist"
     }
     // var auths = await app.model.Authdept.findAll({
@@ -1384,3 +1384,44 @@ app.route.post('/issues/rejected/reasons', async function(req, cb){
         isSuccess: true
     }
 })
+
+app.route.post('/customTemplateDefine', async function(req){
+    if(!req.query.template) return {
+        isSuccess: false,
+        message: "Need to give the template object."
+    }
+    var customFieldExists = await app.model.Customtemplate.exists({
+        id: '0'
+    });
+    if(!customFieldExists){
+        app.sdb.create('customtemplate', {
+            id: '0',
+            template: JSON.stringify(req.query.template)
+        });
+    } else {
+        app.sdb.update('customtemplate', {
+            template: JSON.stringify(req.query.template)
+        }, {
+            id: '0'
+        });
+    }
+    await blockWait();
+    return {
+        isSuccess: true
+    }
+})
+
+app.route.post('/customTemplateGet', async function(req){
+    var template = await app.model.Customtemplate.findOne({
+        condition: {
+            id: '0'
+        }
+    });
+    if(!template) template = {
+        template: JSON.stringify({})
+    }
+    return {
+        isSuccess: true,
+        template: JSON.parse(template.template)
+    }
+});
