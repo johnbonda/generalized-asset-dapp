@@ -809,9 +809,20 @@ app.route.post('/query/authorizer/statistic/rejectedIssues', async function(req)
 app.route.post('/query/employees2', async function(req){
     logger.info("Entered /query/employees2 API");
 
+    var issuerFilterCondition = "";
+    var issuerFilterCondition2 = "";
+    var queryArray = [];
+    if(req.query.iid){
+        issuerFilterCondition = " join issudepts on issudepts.iid = ? join departments on departments.did = issudepts.did";
+        issuerFilterCondition2 = " and employees.department = departments.name"
+        queryArray.push(req.query.iid);
+    }
+
+    var query = `select employees.empid, employees.email, employees.name, employees.department, count(issues.pid) as assetCount from employees left join issues on issues.empid = employees.empid and issues.status = 'issued'${issuerFilterCondition} where employees.deleted = '0'${issuerFilterCondition2} group by employees.empid`; 
+
     var total = await new Promise((resolve)=>{
-        let sql = `select count(*) from (select employees.empid, employees.email, employees.name, employees.department, count(issues.pid) as assetCount from employees left join issues on issues.empid = employees.empid and issues.status = 'issued' where employees.deleted = '0' group by employees.empid);`;
-        app.sideChainDatabase.get(sql, [], (err, row)=>{
+        let sql = `select count(*) from (${query});`;
+        app.sideChainDatabase.get(sql, queryArray, (err, row)=>{
             if(err) resolve({
                 isSuccess: false,
                 message: JSON.stringify(err),
@@ -823,10 +834,12 @@ app.route.post('/query/employees2', async function(req){
             });
         });
     });
+
+    queryArray.push(req.query.limit || 20, req.query.offset || 0);
     
     var employees = await new Promise((resolve)=>{
-        let sql = `select employees.empid, employees.email, employees.name, employees.department, count(issues.pid) as assetCount from employees left join issues on issues.empid = employees.empid and issues.status = 'issued' where employees.deleted = '0' group by employees.empid limit ? offset ?;`;
-        app.sideChainDatabase.all(sql, [req.query.limit || 20, req.query.offset || 0], (err, row)=>{
+        let sql = `${query} limit ? offset ?;`;
+        app.sideChainDatabase.all(sql, queryArray, (err, row)=>{
             if(err) resolve({
                 isSuccess: false,
                 message: JSON.stringify(err),
