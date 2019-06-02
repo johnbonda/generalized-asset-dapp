@@ -15,13 +15,27 @@ var locker = require("../utils/locker");
 module.exports = {
 
     issuePaySlip: async function(toaddr, type, payslip, pid, balance){
-
+        //Check the package
+        var limit = await app.model.Issuelimit.findOne({
+            condition: {
+                name: "issuelimit"
+            }
+        });
+        if(!limit || limit.value <= 0) return {
+            isSuccess: false,
+            message: "No active package"
+        }
         app.sdb.update('issue', {transactionId: this.trs.id}, {pid: pid});
         app.sdb.update('issue', {status: "issued"}, {pid: pid});  
         app.sdb.update('issue', {timestampp: new Date().getTime()}, {pid: pid});
         app.sdb.create('transactiondetail', {
             transactionId: this.trs.id,
             balance: balance
+        });
+        app.sdb.update("issuelimit", {
+            value: limit.value - 1
+        }, {
+            name: "issuelimit"
         });
     },
 

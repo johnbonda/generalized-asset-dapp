@@ -50,6 +50,16 @@ async function issueAsset(req){
             message: "Same pid in a block"
         }
     }
+    //Check the package
+    var limit = await app.model.Issuelimit.findOne({
+        condition: {
+            name: "issuelimit"
+        }
+    });
+    if(!limit || limit.value <= 0) return {
+        isSuccess: false,
+        message: "No active package"
+    }
     var transactionParams = {};
     var pid = req.query.pid;
 

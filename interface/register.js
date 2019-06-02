@@ -1573,3 +1573,62 @@ app.route.post('/generatePayslipLink', async function(req, cb){
         isSuccess: true
     }
 }); 
+
+app.route.post("/centralserver/addIssuelimits", async function(req){
+    if(!req.query.centralServerKey) return {
+        isSuccess: false,
+        message: "Need to provide the centralServerKey, issue limit not updated."
+    }
+    if(!util.centralServerCheck(req.query.centralServerKey)) return {
+        isSuccess: false,
+        message: "Central Server authentication failed, issue limit not updated."
+    }         
+    if(!req.query.limit) return {
+        isSuccess: false,
+        message: "Need to provide a new limit."
+    }
+    try{
+        req.query.limit = Number(req.query.limit);
+    } catch(err){
+        return {
+            isSuccess: false,
+            message: "Limit should be a number"
+        }
+    }
+    var limit = await app.model.Issuelimit.findOne({
+        condition: {
+            name: "issuelimit"
+        }
+    });
+    if(!limit){
+        app.sdb.create("issuelimit", {
+            name: "issuelimit",
+            value: req.query.limit
+        });
+    } else {
+        app.sdb.update("issuelimit", {
+            value: limit.value + req.query.limit
+        }, {
+            name: "issuelimit"
+        });
+    }
+    return {
+        isSuccess: true
+    }
+});
+
+app.route.post("/getIssueLimit", async function(req){
+    var limit = await app.model.Issuelimit.findOne({
+        condition: {
+            name: "issuelimit"
+        }
+    });
+    if(!limit) return {
+        isSuccess: false,
+        message: "Limit not defined"
+    }
+    return {
+        isSuccess: true,
+        limit: limit.value
+    }
+});
