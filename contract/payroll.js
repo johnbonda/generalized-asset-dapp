@@ -21,7 +21,7 @@ module.exports = {
                 name: "issuelimit"
             }
         });
-        if(!limit || limit.value <= 0) return {
+        if(!limit || limit.value <= 0 || limit.expirydate < new Date().getTime()) return {
             isSuccess: false,
             message: "No active package"
         }

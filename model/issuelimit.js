@@ -11,6 +11,11 @@ module.exports = {
             name: 'value',
             type: 'Number',
             length: 255,
+        },
+        {
+            name: 'expirydate',
+            type: 'Number',
+            length: 255,
         }
     ]
 }

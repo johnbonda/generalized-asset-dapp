@@ -1583,9 +1583,9 @@ app.route.post("/centralserver/addIssuelimits", async function(req){
         isSuccess: false,
         message: "Central Server authentication failed, issue limit not updated."
     }         
-    if(!req.query.limit) return {
+    if(!(req.query.limit && req.query.expirydate)) return {
         isSuccess: false,
-        message: "Need to provide a new limit."
+        message: "Need to provide a new limit and expirydate."
     }
     try{
         req.query.limit = Number(req.query.limit);
@@ -1603,15 +1603,22 @@ app.route.post("/centralserver/addIssuelimits", async function(req){
     if(!limit){
         app.sdb.create("issuelimit", {
             name: "issuelimit",
-            value: req.query.limit
+            value: req.query.limit,
+            expirydate: req.query.expirydate
         });
     } else {
         app.sdb.update("issuelimit", {
-            value: limit.value + req.query.limit
+            value: req.query.limit
+        }, {
+            name: "issuelimit"
+        });
+        app.sdb.update("issuelimit", {
+            expirydate: req.query.expirydate
         }, {
             name: "issuelimit"
         });
     }
+    await blockWait();
     return {
         isSuccess: true
     }
@@ -1629,6 +1636,7 @@ app.route.post("/getIssueLimit", async function(req){
     }
     return {
         isSuccess: true,
-        limit: limit.value
+        limit: limit.value,
+        expirydate: limit.expirydate
     }
 });
